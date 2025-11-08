@@ -1,0 +1,16 @@
+{
+  "name": "vjson",
+  "version": "1.0.0",
+  "description": "virtual memory json parser for nodejs",
+  "main": "src/vjson.js",
+  "gypfile": true,
+  "scripts": {
+    "test": "node src/test.js",
+    "build:dev": "node-gyp configure build --debug",
+    "build": "node-gyp configure build",
+    "clean": "node-gyp clean"
+  },
+  "dependencies": {
+    "bindings": "^1.5.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "command": "npm run build:dev",
+            "label": "npm run build:dev"
+        }
+    ],
+    "version": "2.0.0"
+}
