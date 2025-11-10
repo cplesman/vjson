@@ -1,5 +1,7 @@
 #include "vjson_wrap.h"
 
+#include <time.h>
+
 napi_status helper_checkparams(napi_env env, napi_callback_info info, size_t argc/*expected*/, napi_value *argv, napi_valuetype *types){
     size_t expected = argc;
     //argc will return more even if expected is less
@@ -21,15 +23,16 @@ napi_status helper_checkparams(napi_env env, napi_callback_info info, size_t arg
         return napi_status::napi_invalid_arg;
 }
 
-#define helper_check_and_extractObject(num)  \
-    napi_value argv[3]; JsonMM *mem; napi_value js_obj; \
-    napi_valuetype expectedTypes[3] = { napi_object,napi_string,napi_object }; \
-    napi_status err = helper_checkparams(env, info, num, argv, expectedTypes); \
+#define helper_check_and_extractObject()  \
+    napi_value argv[3]; JsonMM *mem; i64 *parent; napi_value js_obj; \
+    napi_valuetype expectedTypes[3] = { napi_object,napi_object,napi_string }; \
+    napi_status err = helper_checkparams(env, info, 3, argv, expectedTypes); \
     if (err != napi_ok) { \
         napi_get_null(env, &js_obj); \
         return js_obj; \
     } \
-    CHECK(napi_unwrap(env, argv[0], (void**)&mem)==napi_ok)
+    CHECK(napi_unwrap(env, argv[0], (void**)&mem)==napi_ok) \
+    CHECK(napi_unwrap(env, argv[1], (void**)&parent)==napi_ok) 
 
 
 napi_value vjson_wrap::init(napi_env env, napi_callback_info info){ //allocate and wrap oject
@@ -40,12 +43,12 @@ napi_value vjson_wrap::init(napi_env env, napi_callback_info info){ //allocate a
         napi_get_null(env, &js_obj);
         return js_obj;
     }
-    char str[256]; size_t strSize;
-    CHECK(napi_get_value_string_utf8(env, argv[0],str,256-1,&strSize)==napi_ok);
+    char str[512]; size_t strSize;
+    CHECK(napi_get_value_string_utf8(env, argv[0],str,512-1,&strSize)==napi_ok);
     vjsonMM = new JsonMM(str);
     vjsonMM->Init();
     CHECK(napi_create_object(env, &js_obj)==napi_ok);
-    CHECK(napi_wrap(env,js_obj,vjsonMM,vjson_wrap::free,NULL, NULL) == napi_ok);
+    CHECK(napi_wrap(env,js_obj,vjsonMM,vjson_wrap::freeMem,NULL, NULL) == napi_ok);
     return js_obj;
 }
 void vjson_wrap::freeMem(napi_env env, void* data, void* hint){         //called when object is garbage collected
@@ -54,7 +57,44 @@ void vjson_wrap::freeMem(napi_env env, void* data, void* hint){         //called
     delete ((JsonMM*)data);
 }
 
-void vjson_wrap::freeObj/*or array*/(napi_env env, void* data, void* hint){          //called when object is garbage collected
+napi_value vjson_wrap::create_obj(napi_env env, napi_callback_info info){ //allocate and wrap oject
+    helper_check_and_extractObject();
+    size_t argc = 3; napi_value argv[3]; JsonMM *vjsonMM; i64 parent;
+    napi_valuetype expectedTypes[3] = {napi_object,napi_string,napi_object};
+    napi_status err = helper_checkparams(env,info,argc, argv, expectedTypes);
+    if(err!=napi_ok){
+        napi_get_null(env, &js_obj);
+        return js_obj;
+    }
+    char type[64]; size_t typeSize;
+    CHECK(napi_get_value_string_utf8(env, argv[1],type,64-1,&typeSize)==napi_ok);
+    i64 objret;
+    long lerr = JSON_ERROR_INVALIDDATA;
+    switch(type[0]){
+        case 'n': //number or null
+            if(type[1]=='u'&&type[2]=='l'){ //null
+                lerr = jsonnull_Create(&objret);
+            }
+            else { //number
+                lerr = jsonnumber_Create(&objret);
+            }
+            break;
+        case 'a': //array
+            lerr = jsonarray_Create(&objret); break;
+        case 'o': //object
+            lerr = jsonobj_Create(&objret); break;
+    }
+    
+    
+    vjsonMM = new JsonMM(str);
+    vjsonMM->Init();
+    CHECK(napi_create_object(env, &js_obj)==napi_ok);
+    CHECK(napi_wrap(env,js_obj,vjsonMM,vjson_wrap::freeMem,NULL, NULL) == napi_ok);
+    return js_obj;
+
+}
+
+void vjson_wrap::free_obj/*or array*/(napi_env env, void* data, void* hint){          //called when object is garbage collected
     delete ((i64*)data); //no need to delete inside data as they will be saved in vmem
 }
 
@@ -64,11 +104,112 @@ i64 GetObjectFromKeyPath(JsonMM *mem, char *keyPath){
     //if any key in the path does not exist, return 0
     return 0; //TODO: implement this
 }
+size_t CreateUniqueKeyForObject(JsonMM *mem, i64 parentObjLoc, char *outKey, size_t maxKeySize){
+    //generate a unique key under parentObjLoc and write to outKey
+    //assume outKey has enough space
+    //simple example using timestamp, in real implementation ensure uniqueness
+    time_t now = time(NULL);
+    size_t size = snprintf(outKey, maxKeySize, "%lld", now); //simple example, use timestamp
+    if(size<0) return 0;
+    //check uniqueness
+    jsonobj *parentObjPtr = (jsonobj*)mem->Lock(parentObjLoc);
+    i64 foundPair = parentObjPtr->Find(outKey); //to check uniqueness in real implementation
+    while(foundPair){
+        //handle collision, in real implementation
+        now += 1;
+        size = snprintf(outKey, maxKeySize, "%lld", now); //simple example, use timestamp
+        if(size<0) break;
+        foundPair = parentObjPtr->Find(outKey); //to check uniqueness in real implementation
+    }
+    mem->Unlock(parentObjLoc);
+    return size<0 ? 0 : size;
+}
+
+long append_jsonobj(JsonMM *mem, jsonobj* p_obj, napi_value node_obj){
+    napi_value propertyNames;
+    CHECK(napi_get_property_names(env, node_obj, &propertyNames) == napi_ok);
+    uint32_t propCount;
+    CHECK(napi_get_array_length(env, propertyNames, &propCount) == napi_ok);
+    for (uint32_t i = 0; i < propCount; i++) {
+        napi_value propName;
+        CHECK(napi_get_element(env, propertyNames, i, &propName) == napi_ok);
+        char propNameStr[256]; size_t propNameStrSize;
+        CHECK(napi_get_value_string_utf8(env, propName, propNameStr, 256 - 1, &propNameStrSize) == napi_ok);
+        napi_value propValue;
+        CHECK(napi_get_property(env, node_obj, propName, &propValue) == napi_ok);
+        //determine type of propValue and set in newObjPtr accordingly
+        //for simplicity, only handling string properties here
+        napi_valuetype propValueType;
+        CHECK(napi_typeof(env, propValue, &propValueType) == napi_ok);
+        switch (propValueType){
+            case napi_string: {
+                size_t valueStrSize;
+                CHECK(napi_get_value_string_utf8(env, propValue, nullptr, 0, &valueStrSize) == napi_ok);
+                i64 valueStr = 0;
+                if(valueStrSize) {
+                    valueStr = mem->Alloc(valueStrSize);
+                    if(!valueStr) return JSON_ERROR_OUTOFMEMORY;
+                    char *valueStrPtr = (char*)mem->Lock(valueStr);
+                    CHECK(napi_get_value_string_utf8(env, propValue, valueStrPtr, 0, &valueStrSize) == napi_ok);
+                    mem->Unlock(valueStr);
+                }
+                //create and append jsonstring object
+                i64 strObjLoc= p_obj->AppendText(propNameStr, valueStr/*ok if null*/);
+                if(!strObjLoc) return JSON_ERROR_OUTOFMEMORY;
+                break;
+            }
+            case napi_object:{
+                i64 obj = p_boj->AppendObj(propNameStr);
+                if(!obj){
+                    return JSON_ERROR_OUTOFMEMORY;
+                }
+                jsonobj *objPtr = (jsonobj*)mem->Lock(obj);
+                long err = append_jsonobj(mem,objPtr,propValue);
+                if(err<0) return err;
+                break;
+            }
+            case napi_number:{
+                double dval;
+                CHECK(napi_get_value_double(env, propValue, &dval) == napi_ok);
+                i64 num = p_obj->AppendNumber(propNameStr,dval);
+                if(!num) return JSON_ERROR_OUTOFMEMORY;
+                break;
+            }
+            case napi_boolean:{
+                bool bval;
+                CHECK(napi_get_value_bool(env,propValue,&dval)==napi_ok);
+                i64 b = p_obj->AppendBoolean(propNameStr,dval);
+                if(!b) return JSON_ERROR_OUTOFMEMORY;
+                break;
+            }
+            case napi_null:{
+                bool bval;
+                i64 b = p_obj->AppendNull(propNameStr);
+                if(!b) return JSON_ERROR_OUTOFMEMORY;
+                break;
+            }
+            case napi_undefined:{
+                bool bval;
+                i64 b = p_obj->AppendUndefined(propNameStr);
+                if(!b) return JSON_ERROR_OUTOFMEMORY;
+                break;
+            }
+        }
+    }
+}
 
 napi_value vjson_wrap::append_obj(napi_env env, napi_callback_info info){
     //params: vjsonMM, keypath of parent object, ID/KEY of object to append (empty to create key), object to append
     napi_value js_obj;
-    helper_check_and_extractObject(3); //unwrap vjsonMM
+    napi_value argv[4]; 
+    JsonMM *mem; char objPath[256]; size_t objPathSize; char key[256]; size_t keySize;
+    napi_valuetype expectedTypes[4] = { napi_object,napi_string,napi_string,napi_object };
+    napi_status err = helper_checkparams(env, info, 4, argv, expectedTypes);
+    if (err != napi_ok) {
+        napi_get_null(env, &js_obj);
+        return js_obj;
+    }
+    CHECK(napi_unwrap(env, argv[0], (void**)&mem)==napi_ok)
     char objPath[256]; size_t objPathSize;
     CHECK(napi_string_to_utf8(env, argv[1], objPath, 256 - 1, &objPathSize) == napi_ok);
     if(!objPathSize){
@@ -84,8 +225,33 @@ napi_value vjson_wrap::append_obj(napi_env env, napi_callback_info info){
     CHECK(napi_string_to_utf8(env, argv[2], key, 256 - 1, &keySize) == napi_ok);
     if(!keySize){
         //generate unique key
-        
+        keySize = CreateUniqueKeyForObject(mem, parentObjLoc, key, 256);
+        if(!keySize){
+            napi_throw_error(env, "-5", "failed to create unique key");
+            return NULL;
+        }
     }
+
+    //append object
+    g_jsonMem = mem; //set global memory manager for jsonobj_Create
+    i64 newObjLoc;
+    long err =jsonobj_Create(&newObjLoc);
+    if(err<0){
+        napi_throw_error(env, "-6", "failed to create new object");
+        return NULL;
+    }
+    jsonobj *parentObjPtr = (jsonobj*)mem->Lock(parentObjLoc);
+    err = parentObjPtr->AppendObj(key, newObjLoc);
+    if(err<0){
+        mem->Unlock(parentObjLoc);
+        jsonobj_Delete(newObjLoc);
+        napi_throw_error(env, "-7", "failed to append new object to parent");
+        return NULL;
+    }
+    jsonobj *newObjPtr = (jsonobj*)mem->Lock(newObjLoc);
+
+    
+
     CHECK(napi_create_string_utf8(env, key, keySize, &js_obj) == napi_ok);
     return js_obj;
 }

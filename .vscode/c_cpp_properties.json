@@ -11,7 +11,9 @@
         "${workspaceFolder}/node_modules/node-addon-api/include",
         "${workspaceFolder}/node_modules/nan",
         "/usr/include/node",
-        "${workspaceFolder}/**"
+        "${workspaceFolder}/**",
+        "~/AppData/Local/node-gyp/Cache/20.15.1/include/node",
+        "/mnt/c/Users/cples/AppData/Local/node-gyp/Cache/20.15.1/include/node"
       ],
       "defines": [],
       "compilerPath": "/usr/bin/g++",

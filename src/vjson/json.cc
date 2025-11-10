@@ -10,6 +10,8 @@ long jsonarray_Type() { return JSON_ARRAY; }
 long jsonstring_Type() { return JSON_STRING; }
 long jsonnumber_Type() { return JSON_NUMBER; }
 long jsonboolean_Type() { return JSON_BOOLEAN; }
+long jsonnull_Type() { return JSON_NULL; }
+long jsonundefined_Type() { return JSON_UNDEFINED; }
 
 long jsonobj_Create(i64* p_obj) {
 	*p_obj = g_jsonMem->Alloc(sizeof(jsonobj));
@@ -56,6 +58,23 @@ long jsonboolean_Create(i64* p_obj) {
 	jsonboolean *obj = (jsonboolean*)g_jsonMem->Lock(*p_obj);
 	obj->b = false;
 	obj->m_ftable = JSON_BOOLEAN;
+	g_jsonMem->Unlock(*p_obj);
+	return 0;
+}
+long jsonundefined_Create(i64* p_obj) {
+	*p_obj = g_jsonMem->Alloc(sizeof(jsonobj));
+	if(!*p_obj) return JSON_ERROR_OUTOFMEMORY;
+	jsonundefined *obj = (jsonundefined*)g_jsonMem->Lock(*p_obj);
+	obj->b = false;
+	obj->m_ftable = JSON_UNDEFINED;
+	g_jsonMem->Unlock(*p_obj);
+	return 0;
+}
+long jsonnull_Create(i64* p_obj) {
+	*p_obj = g_jsonMem->Alloc(sizeof(jsonobj));
+	if(!*p_obj) return JSON_ERROR_OUTOFMEMORY;
+	jsonnull *obj = (jsonnull*)g_jsonMem->Lock(*p_obj);
+	obj->m_ftable = JSON_NULL;
 	g_jsonMem->Unlock(*p_obj);
 	return 0;
 }
@@ -115,6 +134,26 @@ void jsonboolean_Delete(i64 p_obj) {
 	g_jsonMem->Free(p_obj);
 }
 
+void jsonnull_Free(_jsonobj* obj) {
+	//nothing to free
+}
+void jsonnull_Delete(i64 p_obj) {
+	jsonnull* obj = (jsonnull*)g_jsonMem->Lock(p_obj);
+	jsonnull_Free(obj);
+	g_jsonMem->Unlock(p_obj);
+	g_jsonMem->Free(p_obj);
+}
+
+void jsonundefined_Free(_jsonobj* obj) {
+	//nothing to free
+}
+void jsonundefined_Delete(i64 p_obj) {
+	jsonundefined* obj = (jsonundefined*)g_jsonMem->Lock(p_obj);
+	jsonundefined_Free(obj);
+	g_jsonMem->Unlock(p_obj);
+	g_jsonMem->Free(p_obj);
+}
+
 jsonobj_functable jsonobj_ftable = {
 	jsonobj_Type,
 	jsonobj_Create,
@@ -151,11 +190,19 @@ jsonobj_functable jsonboolean_ftable = {
 	jsonboolean_Load
 };
 jsonobj_functable jsonnull_ftable = {
-	0,
-	0,
-	0,
-	0,
-	0
+	jsonnull_Type,
+	jsonnull_Create,
+	jsonnull_Delete,
+	jsonnull_Free,
+	jsonnull_Load
+};
+
+jsonobj_functable jsonundefined_ftable = {
+	jsonundefined_Type,
+	jsonundefined_Create,
+	jsonundefined_Delete,
+	jsonundefined_Free,
+	jsonundefined_Load
 };
 
 jsonobj_functable* jsonobj_ftables[6] = {
@@ -286,6 +333,24 @@ long JSON_parseVal(i64 *p_val, char lastch, stream *buf) {
 
 		err = jsonboolean_Load(*p_val,buf, ch);
 		if (err < 0) { jsonboolean_Delete(*p_val); *p_val = 0; return err; }
+
+		return err; 
+	}
+	else if( (ch=='n') ) {
+		err = jsonnull_Create(p_val);
+		if (err < 0) { if(*p_val) return err; }
+
+		err = jsonnull_Load(*p_val,buf, ch);
+		if (err < 0) { jsonnull_Delete(*p_val); *p_val = 0; return err; }
+
+		return err; 
+	}
+	else if( ch=='u' ) {
+		err = jsonundefined_Create(p_val);
+		if (err < 0) { if(*p_val) return err; }
+
+		err = jsonundefined_Load(*p_val,buf, ch);
+		if (err < 0) { jsonundefined_Delete(*p_val); *p_val = 0; return err; }
 
 		return err; 
 	}

@@ -12,7 +12,9 @@
 #define JSON_TEXT			2 //
 #define JSON_STRING			2 // SAME AS TEXT
 #define JSON_NUMBER			3 //
-#define JSON_BOOLEAN		5 //array of raw data
+#define JSON_BOOLEAN		5 
+#define JSON_NULL			6
+#define JSON_UNDEFINED		7
 
 #define JSON_ERROR_OUTOFMEMORY -8
 #define JSON_ERROR_INVALIDDATA -4
@@ -35,6 +37,7 @@ extern jsonobj_functable jsonarray_ftable;
 extern jsonobj_functable jsonstring_ftable;
 extern jsonobj_functable jsonnumber_ftable;
 extern jsonobj_functable jsonboolean_ftable;
+extern jsonobj_functable jsonundefined_ftable;
 
 extern jsonobj_functable *jsonobj_ftables[6];
 
@@ -235,7 +238,10 @@ public:
 
 	i64 AppendText(const char *key, const char *val);
 	i64 AppendText(const char *key, const char *val, const unsigned long len);
+	i64 AppendText(const char *key, i64 valLoc);
 	i64 AppendObj(const char *key, i64 val);
+	//append empty obj
+	i64 AppendObj(const char *key);
 	i64 AppendNumber(const char *key, double num);
 	i64 AppendBoolean(const char *key, bool p_b);
 };
@@ -317,22 +323,27 @@ class jsonstring : public _jsonobj {
 public:
 	i64 m_str;
 	//make sure m_str is not allocated before calling this
-	long SetString(const char *s) {
-		unsigned long i = 0;
-		if (s) {
-			for (;s[i]; i++) {}
-			m_str = g_jsonMem->Alloc(sizeof(char)*(i + 1));
-			if(!m_str) return JSON_ERROR_OUTOFMEMORY;
-			char *strPtr = (char*)g_jsonMem->Lock(m_str);
-			for (i=0; s[i]; i++) {
-				strPtr[i] = s[i];
-			}
-			strPtr[i] = 0;
+	long SetString(i64 sLoc) {
+		if(m_str){
+			g_jsonMem->Free(m_str);
+			m_str = 0;
 		}
-		return i;
+		m_str = sLoc;
+		return 0;
+	}
+	long SetString(const char *s) {
+		unsigned long len = 0;
+		if (s) {
+			for (;s[len]; len++) {}
+		}
+		return SetString(s,len);
 	}
 	long SetString(const char *s, unsigned long len) {
 		unsigned long i = 0;
+		if(m_str){
+			g_jsonMem->Free(m_str);
+			m_str = 0;
+		}
 		if (s) {
 			m_str = g_jsonMem->Alloc(sizeof(char)*(len + 1));
 			if(!m_str) return JSON_ERROR_OUTOFMEMORY;
@@ -374,6 +385,23 @@ long jsonboolean_Type();
 void jsonboolean_Delete(i64);
 long jsonboolean_Create(i64*);
 long jsonboolean_Load(i64, stream*, char);
+
+class jsonnull : public _jsonobj {
+public:
+};
+long jsonnull_Type();
+void jsonnull_Delete(i64);
+long jsonnull_Create(i64*);
+long jsonnull_Load(i64, stream*, char);
+
+class jsonundefined : public _jsonobj {
+public:
+	bool b;
+};
+long jsonundefined_Type();
+void jsonundefined_Delete(i64);
+long jsonundefined_Create(i64*);
+long jsonundefined_Load(i64, stream*, char);
 
 
 long JSON_movepastwhite(stream *buf);

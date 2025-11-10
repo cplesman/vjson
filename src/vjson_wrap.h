@@ -92,7 +92,7 @@ public:
 class vjson_wrap{
 public:
     static napi_value init(napi_env env, napi_callback_info info); //allocate and wrap oject
-    static void free(napi_env env, void* data, void* hint);          //called when object is garbage collected
+    static void freeMem(napi_env env, void* data, void* hint);          //called when object is garbage collected
 
     static napi_value flush(napi_env env, napi_callback_info info);
 
