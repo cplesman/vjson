@@ -13,8 +13,8 @@
 #define JSON_STRING			2 // SAME AS TEXT
 #define JSON_NUMBER			3 //
 #define JSON_BOOLEAN		5 
-#define JSON_NULL			6
-#define JSON_UNDEFINED		7
+#define JSON_NULL			0
+#define JSON_UNDEFINED		6
 
 #define JSON_ERROR_OUTOFMEMORY -8
 #define JSON_ERROR_INVALIDDATA -4
@@ -244,6 +244,8 @@ public:
 	i64 AppendObj(const char *key);
 	i64 AppendNumber(const char *key, double num);
 	i64 AppendBoolean(const char *key, bool p_b);
+	i64 AppendNull(const char *key);
+	i64 AppendUndefined(const char *key);
 };
 long jsonobj_Type();
 void jsonobj_Delete(i64);

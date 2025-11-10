@@ -96,7 +96,8 @@ public:
 
     static napi_value flush(napi_env env, napi_callback_info info);
 
-    static void freeObj/*or array*/(napi_env env, void* data, void* hint);          //called when object is garbage collected
+    static napi_value create_obj(napi_env env, napi_callback_info info);
+    static void free_obj/*or array*/(napi_env env, void* data, void* hint);          //called when object is garbage collected
 
     static napi_value append_obj(napi_env env, napi_callback_info info);
     static napi_value delete_obj(napi_env env, napi_callback_info info);
