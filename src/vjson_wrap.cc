@@ -68,30 +68,33 @@ napi_value vjson_wrap::create_obj(napi_env env, napi_callback_info info){ //allo
     }
     char type[64]; size_t typeSize;
     CHECK(napi_get_value_string_utf8(env, argv[1],type,64-1,&typeSize)==napi_ok);
-    i64 objret;
+    i64 *objret = new i64;
     long lerr = JSON_ERROR_INVALIDDATA;
     switch(type[0]){
+        default:
         case 'n': //number or null
-            if(type[1]=='u'&&type[2]=='l'){ //null
-                lerr = jsonnull_Create(&objret);
+            if(type[1]=='u'&&type[2]=='m'){ //null
+                lerr = jsonnumber_Create(objret);
             }
             else { //number
-                lerr = jsonnumber_Create(&objret);
+                lerr = jsonnull_Create(objret);
             }
             break;
         case 'a': //array
-            lerr = jsonarray_Create(&objret); break;
+            lerr = jsonarray_Create(objret); break;
         case 'o': //object
-            lerr = jsonobj_Create(&objret); break;
+            lerr = jsonobj_Create(objret); break;
+        case 'u': //undefined
+            lerr = jsonundefined_Create(objret); break;
+        case 's': //string
+            lerr = jsonstring_Create(objret); break;
+        case 'b': //boolean
+            lerr = jsonboolean_Create(objret); break;
     }
     
-    
-    vjsonMM = new JsonMM(str);
-    vjsonMM->Init();
     CHECK(napi_create_object(env, &js_obj)==napi_ok);
-    CHECK(napi_wrap(env,js_obj,vjsonMM,vjson_wrap::freeMem,NULL, NULL) == napi_ok);
+    CHECK(napi_wrap(env,js_obj,objret,vjson_wrap::free_obj,NULL, NULL) == napi_ok);
     return js_obj;
-
 }
 
 void vjson_wrap::free_obj/*or array*/(napi_env env, void* data, void* hint){          //called when object is garbage collected
@@ -164,6 +167,7 @@ long append_jsonobj(JsonMM *mem, jsonobj* p_obj, napi_value node_obj){
                     return JSON_ERROR_OUTOFMEMORY;
                 }
                 jsonobj *objPtr = (jsonobj*)mem->Lock(obj);
+                napi_is_array()
                 long err = append_jsonobj(mem,objPtr,propValue);
                 if(err<0) return err;
                 break;
