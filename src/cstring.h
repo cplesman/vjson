@@ -51,7 +51,7 @@ public:
 		if (m_str) delete[] m_str;
 		m_str = 0;
 	}
-	const unsigned long Size() { return m_len; }
+	unsigned long Size() { return m_len; }
 	void Crop() {
 		if (m_len< m_maxLen) {
 			resize(m_len);

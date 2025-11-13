@@ -135,6 +135,8 @@ long JSON_send(stream *buf, _jsonobj *p_obj, int pretty) {
 		iResult = buf->PutBytes("]", 1);
 		return iResult;
 	}
+	case JSON_NULL: return buf->PutBytes("null",4); break;
+	case JSON_UNDEFINED: return buf->PutBytes("undefined",9); break;
 	default:
 		return buf->PutBytes( "{}",2);
 	}

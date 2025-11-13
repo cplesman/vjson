@@ -25,28 +25,31 @@ i64 jsonobj::AppendText(const char *key, i64 val) {
     if(err<0){ jsonstring_Delete(str); return err; }
     return AppendObj(key, str); // will free str on failure
 }
-i64 jsonobj::AppendObj(const char *key, i64 val) {
+long jsonobj::AppendObj(const char *key, i64 val) {
     i64 kp = g_jsonMem->Alloc(sizeof(jsonkeypair));
     if(!kp) { return JSON_ERROR_OUTOFMEMORY; }
     jsonkeypair* kpPtr = (jsonkeypair*)g_jsonMem->Lock(kp);
     long err;
-    if((err=kpPtr->Init(key, val))<0){ kpPtr->Free()/*will free val as well*/; g_jsonMem->Unlock(kp); return err; }
-    if( (err = addChild(kp))<0/*Resize failed*/ ){ kpPtr->Free()/*will free val as well*/; }
+    if((err=kpPtr->Init(key, val))<0){ kpPtr->Free()/*will free key as well*/; g_jsonMem->Unlock(kp); return err; }
+    if( (err = addChild(kp))<0/*Resize failed*/ ){ kpPtr->val=0/*clear so free doesn't delete*/;kpPtr->Free()/*will free KEY as well*/; }
     g_jsonMem->Unlock(kp);
     return err;
 }
 //append empty obj
 i64 jsonobj::AppendObj(const char *key) { 
-    i64 kp = g_jsonMem->Alloc(sizeof(jsonkeypair));
-    if(!kp) { return JSON_ERROR_OUTOFMEMORY; }
     i64 val; long err = jsonobj_Create(&val);
-    if(!val) { g_jsonMem->Free(kp); JSON_ERROR_OUTOFMEMORY; }
-    jsonkeypair* kpPtr = (jsonkeypair*)g_jsonMem->Lock(kp);
-    long err;
-    if((err=kpPtr->Init(key, val))<0){ kpPtr->Free()/*will free val as well*/; g_jsonMem->Unlock(kp); g_jsonMem->Free(kp); return err; }
-    if( (err = addChild(kp))<0/*Resize failed*/ ){ kpPtr->Free()/*will free val as well*/; }
-    g_jsonMem->Unlock(kp);
-    return err;
+    if(!val) { return JSON_ERROR_OUTOFMEMORY; }
+    err = AppendObj(key,val);
+    if(err<0) {jsonobj_Delete(val); return err;}
+    return val;
+}
+//append empty array
+i64 jsonobj::AppendArray(const char *key) { 
+    i64 val; long err = jsonarray_Create(&val);
+    if(!val) { return JSON_ERROR_OUTOFMEMORY; }
+    err = AppendObj(key,val);
+    if(err<0) {jsonarray_Delete(val); return err;}
+    return val;
 }
 i64 jsonobj::AppendNumber(const char *key, double num) {
     i64 number;
@@ -54,6 +57,7 @@ i64 jsonobj::AppendNumber(const char *key, double num) {
     if(err<0) { return err; }
     jsonnumber* numPtr = (jsonnumber*)g_jsonMem->Lock(number);
     numPtr->num = num;
+    g_jsonMem->Unlock(number);
     return AppendObj(key, number); // will free number on failure
 }
 i64 jsonobj::AppendBoolean(const char *key, bool p_b) {
@@ -62,20 +66,19 @@ i64 jsonobj::AppendBoolean(const char *key, bool p_b) {
     if(err<0) { return err; }
     jsonboolean* numPtr = (jsonboolean*)g_jsonMem->Lock(boolean);
     numPtr->b = p_b;
+    g_jsonMem->Unlock(boolean);
     return AppendObj(key, boolean); // will free boolean on failure
 }
 i64 jsonobj::AppendNull(const char *key) {
     i64 null;
     long err = jsonnull_Create(&null);
     if(err<0) { return err; }
-    jsonnull* numPtr = (jsonnull*)g_jsonMem->Lock(null);
     return AppendObj(key, null); // will free null on failure
 }
 i64 jsonobj::AppendUndefined(const char *key) {
     i64 undefined;
     long err = jsonundefined_Create(&undefined);
     if(err<0) { return err; }
-    jsonundefined* numPtr = (jsonundefined*)g_jsonMem->Lock(undefined);
     return AppendObj(key, undefined); // will free undefined on failure
 }
 
@@ -83,6 +86,16 @@ i64 jsonarray::AppendText(const char *val) {
     unsigned long vlen = 0;
     while (val[vlen]) vlen++;
     return AppendText(val, vlen);
+}
+i64 jsonarray::AppendText(i64 txtLoc) {
+    i64 str;
+    long err = jsonstring_Create(&str);
+    if(err<0) { return err; }
+    jsonstring* sstr = (jsonstring*)g_jsonMem->Lock(str);
+    err = sstr->SetString(txtLoc);
+    g_jsonMem->Unlock(str);
+    if(err<0){ jsonstring_Delete(str); return err; }
+    return AppendObj(str); // will free str on failure
 }
 i64 jsonarray::AppendText(const char *val, const unsigned long len) {
     i64 str;
@@ -94,7 +107,22 @@ i64 jsonarray::AppendText(const char *val, const unsigned long len) {
     if(err<0){ jsonstring_Delete(str); return err; }
     return AppendObj(str); // will free str on failure
 }
-i64 jsonarray::AppendObj(i64 val) {
+//append empty obj
+i64 jsonarray::AppendObj() { 
+    i64 val; long err = jsonobj_Create(&val);
+    if(!val) { return JSON_ERROR_OUTOFMEMORY; }
+    err = AppendObj(val);
+    if(err<0) {jsonobj_Delete(val); return err;}
+    return val;
+}
+i64 jsonarray::AppendArray() { 
+    i64 val; long err = jsonarray_Create(&val);
+    if(!val) { return JSON_ERROR_OUTOFMEMORY; }
+    err = AppendObj(val);
+    if(err<0) {jsonarray_Delete(val); return err;}
+    return val;
+}
+long jsonarray::AppendObj(i64 val) {
     if (m_size >= m_totalsize) {
         int err = Resize(m_totalsize ? m_totalsize * 2 : 4);
         if (err < 0) return err;
@@ -111,6 +139,7 @@ i64 jsonarray::AppendNumber(double num) {
     if(err<0) { return err; }
     jsonnumber* numPtr = (jsonnumber*)g_jsonMem->Lock(number);
     numPtr->num = num;
+    g_jsonMem->Unlock(number);
     return AppendObj(number); // will free number on failure
 }
 i64 jsonarray::AppendBoolean(bool p_b) {
@@ -119,5 +148,18 @@ i64 jsonarray::AppendBoolean(bool p_b) {
     if(err<0) { return err; }
     jsonboolean* numPtr = (jsonboolean*)g_jsonMem->Lock(boolean);
     numPtr->b = p_b;
+    g_jsonMem->Unlock(boolean);
     return AppendObj(boolean); // will free boolean on failure
+}
+i64 jsonarray::AppendNull() {
+    i64 null;
+    long err = jsonnull_Create(&null);
+    if(err<0) { return err; }
+    return AppendObj(null); // will free null on failure
+}
+i64 jsonarray::AppendUndefined() {
+    i64 undefined;
+    long err = jsonundefined_Create(&undefined);
+    if(err<0) { return err; }
+    return AppendObj(undefined); // will free undefined on failure
 }

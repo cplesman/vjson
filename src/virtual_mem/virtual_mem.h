@@ -4,7 +4,7 @@
 #include "../ifile.h"
 #include "../cstring.h"
 
-#define VMEM_FILEBLOCKSHIFT		((i64)10)//1024 bytes per block
+#define VMEM_FILEBLOCKSHIFT		((i64)26)  //64mb not for holding videos
 #define VMEM_FILEBLOCKSIZE		((i64)1<<VMEM_FILEBLOCKSHIFT)
 #define VMEM_FILEBLOCKMASK		((VMEM_FILEBLOCKSIZE-1)&(ARCH_BOUNDARY_MASK))
 

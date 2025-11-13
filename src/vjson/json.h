@@ -19,8 +19,6 @@
 #define JSON_ERROR_OUTOFMEMORY -8
 #define JSON_ERROR_INVALIDDATA -4
 
-void *json_alloc(unsigned long size);
-void json_free(void *ptr);
 extern vmem *g_jsonMem;
 
 class _jsonobj;
@@ -39,7 +37,7 @@ extern jsonobj_functable jsonnumber_ftable;
 extern jsonobj_functable jsonboolean_ftable;
 extern jsonobj_functable jsonundefined_ftable;
 
-extern jsonobj_functable *jsonobj_ftables[6];
+extern jsonobj_functable *jsonobj_ftables[7];
 
 class _jsonobj {
 public:
@@ -93,8 +91,9 @@ public:
 		if (key) g_jsonMem->Free(key); 
 		if (val) { 
 			_jsonobj* valPtr = (_jsonobj*)g_jsonMem->Lock(this->val);
-			jsonobj_ftables[valPtr->m_ftable]->Delete(this->val);
+			long t = valPtr->m_ftable;
 			g_jsonMem->Unlock(this->val);
+			jsonobj_ftables[t]->Delete(this->val);
 		} 
 		next = 0; val = 0; key = 0;
 	}
@@ -129,6 +128,7 @@ public:
 		if(m_tablesize){ //old size
 			i64 *old_data = (i64*)g_jsonMem->Lock(m_tableLoc);
 			unsigned long old_size = m_tablesize;
+			m_tablesize = size2; //must set for hashkey to work
 			unsigned long i;
 			for (i = 0; i < old_size; i++) {
 				i64 itr = old_data[i];
@@ -201,6 +201,8 @@ public:
 	}
 
 	i64 Find(const char *key);
+	long Delete(const char *key);
+	long Replace(const char *key, i64 p_newval);
 	unsigned long NumKeys(i64 p_firstChild) {
 		unsigned count = 0;
 		i64 next = p_firstChild;
@@ -238,10 +240,11 @@ public:
 
 	i64 AppendText(const char *key, const char *val);
 	i64 AppendText(const char *key, const char *val, const unsigned long len);
-	i64 AppendText(const char *key, i64 valLoc);
-	i64 AppendObj(const char *key, i64 val);
+	i64 AppendText(const char *key, i64 txtLoc);
+	long AppendObj(const char *key, i64 val);
 	//append empty obj
 	i64 AppendObj(const char *key);
+	i64 AppendArray(const char *key);
 	i64 AppendNumber(const char *key, double num);
 	i64 AppendBoolean(const char *key, bool p_b);
 	i64 AppendNull(const char *key);
@@ -307,12 +310,20 @@ public:
 		Resize(0);
 	}
 
+	void Delete(unsigned long index);
+	void Replace(unsigned long index, i64 p_newval);
+
 	i64 AppendText(const char *val);
+	i64 AppendText(i64 txtLoc);
 	i64 AppendText(const char *val, const unsigned long len);
-	i64 AppendObj(i64 val);
+	//append empty object
+	i64 AppendObj();
+	i64 AppendArray();
+	long AppendObj(i64 val);
 	i64 AppendNumber(double num);
 	i64 AppendBoolean(bool p_b);
-
+	i64 AppendNull();
+	i64 AppendUndefined();
 };
 long jsonarray_Type();
 void jsonarray_Delete(i64);
@@ -398,12 +409,12 @@ long jsonnull_Load(i64, stream*, char);
 
 class jsonundefined : public _jsonobj {
 public:
-	bool b;
+	static long Type();
+	static void Delete(i64);
+	static long Create(i64*);
+	static long Load(i64, stream*, char);
+	static void Free(_jsonobj*);
 };
-long jsonundefined_Type();
-void jsonundefined_Delete(i64);
-long jsonundefined_Create(i64*);
-long jsonundefined_Load(i64, stream*, char);
 
 
 long JSON_movepastwhite(stream *buf);
@@ -416,7 +427,3 @@ long JSON_parseVal(i64* obj, char lastch, stream* buf);
 long JSON_parseString_iterateNumber(char *result, stream *buf) ;
 long JSON_parseString_iterateQuote(char* result, char quote, stream* buf);
 long JSON_parseString_iterateQuote_getLength(char quote, stream* buf);
-
-
-
-

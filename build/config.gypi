@@ -12,7 +12,7 @@
         "variables": {}
       }
     },
-    "default_configuration": "Debug",
+    "default_configuration": "Release",
     "defines": [],
     "include_dirs": [],
     "libraries": []
@@ -497,16 +497,6 @@
     "want_separate_host_toolset": 0,
     "nodedir": "/home/cplesman/.cache/node-gyp/22.21.0",
     "python": "/usr/bin/python3",
-    "standalone_static_library": 1,
-    "user_agent": "npm/10.9.4 node/v22.21.0 linux x64 workspaces/false",
-    "userconfig": "/home/cplesman/.npmrc",
-    "local_prefix": "/mnt/d/programming/vjson",
-    "prefix": "/home/cplesman/.nvm/versions/node/v22.21.0",
-    "npm_version": "10.9.4",
-    "cache": "/home/cplesman/.npm",
-    "node_gyp": "/home/cplesman/.nvm/versions/node/v22.21.0/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js",
-    "globalconfig": "/home/cplesman/.nvm/versions/node/v22.21.0/etc/npmrc",
-    "init_module": "/home/cplesman/.npm-init.js",
-    "global_prefix": "/home/cplesman/.nvm/versions/node/v22.21.0"
+    "standalone_static_library": 1
   }
 }

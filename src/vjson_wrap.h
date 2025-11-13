@@ -1,3 +1,4 @@
+#pragma once
 #include <stdio.h>
 #include <stdlib.h>
 #include "vjson/json.h"
@@ -89,23 +90,23 @@ public:
 	}
 };
 
+napi_status helper_checkparams(napi_env env, napi_callback_info info, size_t argc/*expected*/, napi_value *argv, napi_valuetype *types);
+
+i64 GetObjectFromKeyPath(JsonMM *mem, char *keyPath,unsigned long keyPathLen);
+size_t CreateUniqueKeyForObject(JsonMM *mem, i64 parentObjLoc, char *outKey, size_t maxKeySize);
+
+long append_toobj(napi_env env, JsonMM *mem, jsonobj* p_obj, napi_value node_obj,bool overwrite=false);
+long append_toarray(napi_env env, JsonMM *mem, jsonarray* p_obj, napi_value node_obj);
+
 class vjson_wrap{
 public:
     static napi_value init(napi_env env, napi_callback_info info); //allocate and wrap oject
-    static void freeMem(napi_env env, void* data, void* hint);          //called when object is garbage collected
+    static void freeMem(napi_env env, void* data, void* hint);     //called when object is garbage collected
 
     static napi_value flush(napi_env env, napi_callback_info info);
-
-    static napi_value create_obj(napi_env env, napi_callback_info info);
-    static void free_obj/*or array*/(napi_env env, void* data, void* hint);          //called when object is garbage collected
 
     static napi_value append_obj(napi_env env, napi_callback_info info);
     static napi_value delete_obj(napi_env env, napi_callback_info info);
     static napi_value update_obj(napi_env env, napi_callback_info info);
     static napi_value read_obj(napi_env env, napi_callback_info info);
-
-    static napi_value append_array(napi_env env, napi_callback_info info);
-    static napi_value delete_array(napi_env env, napi_callback_info info);
-    static napi_value update_array(napi_env env, napi_callback_info info);
-    static napi_value read_array(napi_env env, napi_callback_info info);
 };

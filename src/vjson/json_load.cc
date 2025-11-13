@@ -3,6 +3,23 @@
 
 using namespace std;
 
+long jsonundefined::Load(i64 p_obj, stream* buf, char lastCh) {
+	const char* undefinedstr = "undefined";
+	int i = 1;
+	while(i< 9 ) {
+		char ch;
+		int err = buf->GetBytes(&ch, 1);
+		if (err < 0) return err;
+		if (ch != undefinedstr[i]) {
+			return JSON_ERROR_INVALIDDATA;
+		}
+		i++;
+	}
+	jsonundefined* obj = (jsonundefined*)g_jsonMem->Lock(p_obj);
+	g_jsonMem->Unlock(p_obj);
+	return 'd'; //return last char read
+}
+
 long jsonobj_Load(i64 p_obj, stream* buf, char lastCh) {
 	int err;
 	char ch;
@@ -268,21 +285,4 @@ long jsonnull_Load(i64 p_obj, stream* buf, char lastCh) {
 	jsonnull* obj = (jsonnull*)g_jsonMem->Lock(p_obj);
 	g_jsonMem->Unlock(p_obj);
 	return 'l'; //return last char read
-}
-
-long jsonundefined_Load(i64 p_obj, stream* buf, char lastCh) {
-	const char* undefinedstr = "undefined";
-	int i = 1;
-	while(i< 9 ) {
-		char ch;
-		int err = buf->GetBytes(&ch, 1);
-		if (err < 0) return err;
-		if (ch != undefinedstr[i]) {
-			return JSON_ERROR_INVALIDDATA;
-		}
-		i++;
-	}
-	jsonundefined* obj = (jsonundefined*)g_jsonMem->Lock(p_obj);
-	g_jsonMem->Unlock(p_obj);
-	return 'd'; //return last char read
 }

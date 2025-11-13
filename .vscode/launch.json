@@ -11,8 +11,17 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "preLaunchTask": "npm run build:dev",
-            "type": "pwa-node"
+            "type": "node"
+        },
+        {
+            "name": "C++ Launch VJSON test",
+            "type": "cppdbg",
+            "cwd" : "${workspaceFolder}/test/output/",
+            "request": "launch",
+            "program": "${workspaceFolder}/test/output/vjson.out",
+            "environment": [{ "name": "config", "value": "Debug" }],
+            "stopAtEntry": false,
+            "preLaunchTask": "C/C++: g++.exe build test VJSON"
         }
 
     ]

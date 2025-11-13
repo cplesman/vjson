@@ -87,7 +87,7 @@ long stream::GetBytes(char *p_bytes, long p_numbytes) {
 
 long stream::Seek(char poscode, long offset) {
 	long loc = offset;
-	if(poscode=STREAM_SEEK_CUR){ //current
+	if(poscode==STREAM_SEEK_CUR){ //current
 		loc = m_streamloc - m_bufferendpos + m_bufferpos + offset;
 	}
 	if (loc < 0) {
