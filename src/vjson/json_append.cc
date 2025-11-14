@@ -77,7 +77,7 @@ i64 jsonobj::AppendNull(const char *key) {
 }
 i64 jsonobj::AppendUndefined(const char *key) {
     i64 undefined;
-    long err = jsonundefined_Create(&undefined);
+    long err = jsonundefined::Create(&undefined);
     if(err<0) { return err; }
     return AppendObj(key, undefined); // will free undefined on failure
 }
@@ -159,7 +159,7 @@ i64 jsonarray::AppendNull() {
 }
 i64 jsonarray::AppendUndefined() {
     i64 undefined;
-    long err = jsonundefined_Create(&undefined);
+    long err = jsonundefined::Create(&undefined);
     if(err<0) { return err; }
     return AppendObj(undefined); // will free undefined on failure
 }
