@@ -5,12 +5,15 @@
   "main": "src/vjson.js",
   "gypfile": true,
   "scripts": {
-    "test": "node src/test.js",
-    "build:dev": "node-gyp configure build --debug",
-    "build": "node-gyp configure build",
+    "start": "node index.js",
+    "build:dev": "node-gyp -j 16 build --debug",
+    "build": "node-gyp -j 16 build",
+    "rebuild:dev": "node-gyp -j 16 rebuild --debug",
+    "rebuild": "node-gyp -j 16 rebuild",
     "clean": "node-gyp clean"
   },
   "dependencies": {
-    "bindings": "^1.5.0"
+    "bindings": "^1.5.0",
+    "express": "^5.1.0"
   }
 }

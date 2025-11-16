@@ -4,13 +4,13 @@ const char *g_emptyString = "";
 
 napi_value read_obj(napi_env env, i64 objLoc){
     napi_value js_obj;
-    _jsonobj* objPtr = (_jsonobj*)g_jsonMem->Lock(objLoc);
+    _jsonobj* objPtr = (_jsonobj*)g_jsonMem->Lock(objLoc,true);
     long type = jsonobj_ftables[objPtr->m_ftable]->Type();
     switch(type){
         case JSON_ARRAY:
             napi_create_array(env, &js_obj); //assume no errors
             if(((jsonarray*)objPtr)->m_dataLoc){
-                i64*data = (i64*)g_jsonMem->Lock(((jsonarray*)objPtr)->m_dataLoc);
+                i64*data = (i64*)g_jsonMem->Lock(((jsonarray*)objPtr)->m_dataLoc,true);
                 for(unsigned i=0;i<((jsonarray*)objPtr)->m_size;i++){
                     napi_set_element(env, js_obj,i,read_obj(env,data[i]));
                 }
@@ -20,14 +20,14 @@ napi_value read_obj(napi_env env, i64 objLoc){
         case JSON_OBJ:
             napi_create_object(env,&js_obj);
             if(((jsonobj*)objPtr)->m_tableLoc){
-                i64 *table = (i64*)g_jsonMem->Lock(((jsonobj*)objPtr)->m_tableLoc);
+                i64 *table = (i64*)g_jsonMem->Lock(((jsonobj*)objPtr)->m_tableLoc,true);
                 unsigned long i;
                 for (i = 0; i < ((jsonobj*)objPtr)->m_tablesize; i++) {
                     i64 itr = table[i];
                     while (itr) {
-                        jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr);
+                        jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr,true);
                         i64 next = itrPtr->next;
-                        char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key);
+                        char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key,true);
                         napi_set_named_property(env,js_obj, keyPtr, read_obj(env,itrPtr->val));                        
                         g_jsonMem->Unlock(itrPtr->key);
                         g_jsonMem->Unlock(itr);
@@ -45,7 +45,7 @@ napi_value read_obj(napi_env env, i64 objLoc){
             napi_get_undefined(env,&js_obj);
             break;
         case JSON_TEXT:{
-            const char *strPtr = ((jsonstring*)objPtr)->m_str ? ((char*)g_jsonMem->Lock(((jsonstring*)objPtr)->m_str)) : g_emptyString;
+            const char *strPtr = ((jsonstring*)objPtr)->m_str ? ((char*)g_jsonMem->Lock(((jsonstring*)objPtr)->m_str,true)) : g_emptyString;
             napi_create_string_utf8(env, strPtr, NAPI_AUTO_LENGTH, &js_obj);
             if( ((jsonstring*)objPtr)->m_str ) g_jsonMem->Unlock( ((jsonstring*)objPtr)->m_str );
             break;
@@ -82,7 +82,7 @@ napi_value vjson_wrap::read_obj(napi_env env, napi_callback_info info){
         napi_get_null(env, &js_obj); return js_obj;
     }
     i64 objLoc = GetObjectFromKeyPath(mem, objPath,objPathSize);
-    if(!objLoc){
+    if(objLoc<0){
         napi_throw_error(env, "-4", "object not found");
         napi_get_null(env, &js_obj); return js_obj;
     }

@@ -45,8 +45,21 @@ napi_value vjson_wrap::init(napi_env env, napi_callback_info info){ //allocate a
     }
     char str[512]; size_t strSize;
     CHECK(napi_get_value_string_utf8(env, argv[0],str,512-1,&strSize)==napi_ok);
-    vjsonMM = new JsonMM(str);
-    vjsonMM->Init();
+    g_jsonMem = vjsonMM = new JsonMM(str);
+    long e = vjsonMM->Init();
+    if(e>=0 && vjsonMM->m_root<=0){
+        i64 root;
+        e = jsonobj::Create(&root);
+        if(e>=0){
+            vjsonMM->m_root = root;
+        }
+    }
+    if(e<0) {
+        delete vjsonMM;
+        napi_throw_error(env, "-10", "failed to initialize vjson");
+        napi_get_null(env,&js_obj);
+        return js_obj;
+    }
     CHECK(napi_create_object(env, &js_obj)==napi_ok);
     CHECK(napi_wrap(env,js_obj,vjsonMM,vjson_wrap::freeMem,NULL, NULL) == napi_ok);
     return js_obj;
@@ -54,6 +67,7 @@ napi_value vjson_wrap::init(napi_env env, napi_callback_info info){ //allocate a
 void vjson_wrap::freeMem(napi_env env, void* data, void* hint){         //called when object is garbage collected
     JsonMM* vjsonMM = (JsonMM*)data;
     vjsonMM->Close();
+    g_jsonMem = 0;
     delete ((JsonMM*)data);
 }
 
@@ -106,12 +120,12 @@ i64 GetObjectFromKeyPath(JsonMM *mem, char *keyPath,unsigned long keyPathLen){
     //return location of targetKey object
     //if any key in the path does not exist, return 0
     char key[256];
-    if(!mem->m_globalObjLoc) {return JSON_ERROR_INVALIDDATA;}
-    i64 curObjLoc = mem->m_globalObjLoc;
-    if(!keyPathLen||!keyPath[0]) return mem->m_globalObjLoc; //return ROOT
-    jsonobj *obj = (jsonobj*)mem->Lock(mem->m_globalObjLoc);
+    if(!mem->m_root) {return JSON_ERROR_INVALIDDATA;}
+    i64 curObjLoc = mem->m_root;
+    if(!keyPathLen||!keyPath[0]) return mem->m_root; //return ROOT
+    jsonobj *obj = (jsonobj*)mem->Lock(mem->m_root);
     long curType = jsonobj_ftables[obj->m_ftable]->Type();
-    if(curType!=JSON_ARRAY||curType!=JSON_OBJ) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;}
+    if(curType!=JSON_ARRAY&&curType!=JSON_OBJ) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;}
     //keyPath should be atleast 1024 bytes in length
     unsigned long i=0; unsigned long pi=0;
     while(pi<keyPathLen&&keyPath[pi]=='/') pi++;
@@ -119,12 +133,12 @@ i64 GetObjectFromKeyPath(JsonMM *mem, char *keyPath,unsigned long keyPathLen){
         if(!keyPath[pi] || keyPath[pi]=='/'){
             if(!i) break; //reached end
             key[i] = 0;
-            if(curType==JSON_ARRAY&& key[0]<'0'||key[0]>'9') {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;} //expecting integer index
+            if(curType==JSON_ARRAY&& (key[0]<'0'||key[0]>'9')) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;} //expecting integer index
             i64 nexti = curType==JSON_ARRAY ? ((*((jsonarray*)obj))[(atoi(key))]): obj->Find(key);
             if(!nexti || (pi<keyPathLen-1&&keyPath[pi+1]=='/'/*//*/)) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;}
             jsonobj *obj = (jsonobj*)mem->Lock(curObjLoc);
             curType = jsonobj_ftables[obj->m_ftable]->Type();
-            if(curType!=JSON_ARRAY||curType!=JSON_OBJ) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;}
+            if(curType!=JSON_ARRAY&&curType!=JSON_OBJ) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;}
             curObjLoc = nexti; i=0; continue;
         }
         key[i] = keyPath[pi];
@@ -138,20 +152,20 @@ size_t CreateUniqueKeyForObject(JsonMM *mem, i64 parentObjLoc, char *outKey, siz
     //assume outKey has enough space
     //simple example using timestamp, in real implementation ensure uniqueness
     time_t now = time(NULL);
-    size_t size = snprintf(outKey, maxKeySize, "%lld", now); //simple example, use timestamp
-    if(size<0) return 0;
+    size_t size = snprintf(outKey, maxKeySize, "%ld", now); //simple example, use timestamp
+    if(size<5) return 0;
     //check uniqueness
     jsonobj *parentObjPtr = (jsonobj*)mem->Lock(parentObjLoc);
     i64 foundPair = parentObjPtr->Find(outKey); //to check uniqueness in real implementation
     while(foundPair){
         //handle collision, in real implementation
         now += 1;
-        size = snprintf(outKey, maxKeySize, "%lld", now); //simple example, use timestamp
-        if(size<0) break;
+        size = snprintf(outKey, maxKeySize, "%ld", now); //simple example, use timestamp
+        if(size<5) break;
         foundPair = parentObjPtr->Find(outKey); //to check uniqueness in real implementation
     }
     mem->Unlock(parentObjLoc);
-    return size<0 ? 0 : size;
+    return size<5 ? 0 : size;
 }
 
 napi_value vjson_wrap::flush(napi_env env, napi_callback_info info){
@@ -168,6 +182,22 @@ napi_value vjson_wrap::flush(napi_env env, napi_callback_info info){
     return js_obj;
 }
 
+napi_value vjson_wrap::calculateFree(napi_env env, napi_callback_info info){ 
+    size_t argc = 1; napi_value argv[1]; JsonMM *mem; napi_value js_obj;
+    napi_valuetype expectedTypes[1] = {napi_object};
+    napi_status err = helper_checkparams(env,info,argc, argv, expectedTypes);
+    if(err!=napi_ok){
+        napi_get_null(env, &js_obj);
+        return js_obj;
+    }
+    napi_unwrap(env, argv[0],(void**)&mem);
+
+    i64 numfree = mem->CalculateFree();
+    napi_create_int64(env, numfree, &js_obj);
+
+    return js_obj;
+}
+
 NAPI_MODULE_INIT(/*env, exports*/) {
   // Declare the bindings this addon provides. The data created above is given
   // as the last initializer parameter, and will be given to the binding when it
@@ -175,6 +205,8 @@ NAPI_MODULE_INIT(/*env, exports*/) {
   napi_property_descriptor bindings[] = {
     {"init", NULL, vjson_wrap::init, NULL, NULL, NULL, napi_enumerable, nullptr/*can put global data here*/},
     {"flush", NULL, vjson_wrap::flush, NULL, NULL, NULL, napi_enumerable, nullptr},
+ 
+    {"calculateFree", NULL, vjson_wrap::calculateFree, NULL, NULL, NULL, napi_enumerable, nullptr},
 	
     {"read", NULL, vjson_wrap::read_obj, NULL, NULL, NULL, napi_enumerable, nullptr},
     {"append", NULL, vjson_wrap::append_obj, NULL, NULL, NULL, napi_enumerable, nullptr},

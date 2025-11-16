@@ -2,13 +2,13 @@
 
 vblock *vmem::readBlock(i64 p_loc) {
 	vcache *c;
-	readFileBlock(&c, p_loc);
+	long err = readFileBlock(&c, p_loc); if(err<0) return 0;
 	return (vblock*)(c->m_mem + (p_loc&VMEM_FILEBLOCKMASK));
 }
-void vmem::freeBlock(i64 p_loc) {
+long vmem::freeBlock(i64 p_loc) {
 	//caller must make sure block is not in use
-	vcache *c;
-	readFileBlock(&c, p_loc);
+	vcache *c; long err;
+	if( (err = readFileBlock(&c, p_loc))<0 ) return err;
 	vblock *b = (vblock*)(c->m_mem + (p_loc&VMEM_FILEBLOCKMASK));
 	VMEM_BLOCKSETFREE(b);
 	c->m_flags |= VMEM_CACHEFLAG_DIRTY;
@@ -18,11 +18,13 @@ void vmem::freeBlock(i64 p_loc) {
 	i64 itrLoc = m_start;
 	if (itrLoc) {
 		b = readBlock(itrLoc);
+		if(!b) return VMEM_ERROR_FILEIO;
 		while (heapBlockSize > b->m_size) {
 			prevLoc = itrLoc;
 			itrLoc = b->m_next;
 			if (b->m_next) {
 				b = readBlock(itrLoc);
+				if(!b) return VMEM_ERROR_FILEIO;
 			}
 			else {
 				break; //reached end
@@ -31,7 +33,7 @@ void vmem::freeBlock(i64 p_loc) {
 	}
 
 	//cache may have changed so we need to reload block
-	readFileBlock(&c, p_loc);
+	if( (err=readFileBlock(&c, p_loc))<0) return err;
 	b = (vblock*)(c->m_mem + (p_loc&VMEM_FILEBLOCKMASK));
 	c->m_flags |= VMEM_CACHEFLAG_DIRTY;
 	if (!prevLoc) {
@@ -40,11 +42,13 @@ void vmem::freeBlock(i64 p_loc) {
 	}
 	else {
 		b->m_next = itrLoc/*maybe null or zero*/;
-		readFileBlock(&c, prevLoc);
+		if( (err=readFileBlock(&c, prevLoc))<0) return err;
 		vblock *b = (vblock*)(c->m_mem + (prevLoc&VMEM_FILEBLOCKMASK));
 		b->m_next = p_loc;
 		c->m_flags |= VMEM_CACHEFLAG_DIRTY;
 	}
+
+	return 0;
 }
 
 i64 vmem::allocBlock(i64 pSize) {
@@ -55,13 +59,13 @@ i64 vmem::allocBlock(i64 pSize) {
 	vblock *itr = 0;
 	vcache *itrCache = 0;
 	if (itrLoc) {
-		readFileBlock(&itrCache, itrLoc);
+		long err = readFileBlock(&itrCache, itrLoc); if(err<0) return err;
 		itr = (vblock*)(itrCache->m_mem + (itrLoc&VMEM_FILEBLOCKMASK));
 		while (pSize > itr->m_size) {
 			prevLoc = itrLoc;
 			itrLoc = itr->m_next;
 			if (itr->m_next) {
-				readFileBlock(&itrCache, itrLoc);
+				long err = readFileBlock(&itrCache, itrLoc); if(err<0) return err;
 				itr = (vblock*)(itrCache->m_mem + (itrLoc&VMEM_FILEBLOCKMASK));
 			}
 			else {
@@ -79,12 +83,12 @@ i64 vmem::allocBlock(i64 pSize) {
 		m_start = itr->m_next;
 	}
 	else {
-		readFileBlock(&itrCache, prevLoc);
+		long err = readFileBlock(&itrCache, prevLoc); if(err<0) return err;
 		itr = (vblock*)(itrCache->m_mem + (prevLoc&VMEM_FILEBLOCKMASK));
 		itr->m_next /*prev->m_next*/ = next;
 		itrCache->m_flags |= VMEM_CACHEFLAG_DIRTY;
 		//re load itrLoc cause it may have changed
-		readFileBlock(&itrCache, itrLoc);
+		err = readFileBlock(&itrCache, itrLoc); if(err<0) return err;
 		itr = (vblock*)(itrCache->m_mem + (itrLoc&VMEM_FILEBLOCKMASK));
 	}
 
@@ -96,13 +100,14 @@ i64 vmem::allocBlock(i64 pSize) {
 		itr->m_size -= pSize;
 		i64 bSize = VMEM_BLOCKSIZE(itr);// itr->m_size;
 		i64 nB = itrLoc + bSize;
-		readFileBlock(&itrCache, nB);
+		long err = readFileBlock(&itrCache, nB); if(err<0) return err;
 		itr = (vblock*)(itrCache->m_mem + (nB&VMEM_FILEBLOCKMASK));
 		itr->m_next = 0;
 		itr->m_size = pSize | 1; //pSize was already adjusted to inlclude m_size, this also sets block as used
 		itrCache->m_flags |= VMEM_CACHEFLAG_DIRTY;
 
-		freeBlock(itrLoc); //place block back in free list
+		err = freeBlock(itrLoc); //place block back in free list
+		if(err<0) return err;
 
 		itrLoc = nB;
 		//err = vmem_ReadBlock(&itrCache, p_heap, nB); //load newly created block

@@ -73,19 +73,19 @@ public:
 
 class JsonMM : public vmem{
 public:
-	i64 m_globalObjLoc;
+	i64 m_root;
 
-	JsonMM(const char *dbPath) :vmem(dbPath, new fileio()) {}
+	JsonMM(const char *dbPath) :vmem(dbPath, new fileio()) {m_root=0;}
 	~JsonMM() {}
 
 	i64 ReadGenBlock(const void* fromMem) override {
 		//virtually overload these functions to write/read initial settings
-		m_globalObjLoc = *((i64*)fromMem);
+		m_root = *((i64*)fromMem);
 		return sizeof(i64);
 	}
 	i64 WriteGenBlock(void* toMem) override {
 		//virtually overload these functions to write/read initial settings
-		*((i64*)toMem) = m_globalObjLoc;
+		*((i64*)toMem) = m_root;
 		return sizeof(i64);
 	}
 };
@@ -102,6 +102,8 @@ class vjson_wrap{
 public:
     static napi_value init(napi_env env, napi_callback_info info); //allocate and wrap oject
     static void freeMem(napi_env env, void* data, void* hint);     //called when object is garbage collected
+
+    static napi_value calculateFree(napi_env env, napi_callback_info info);
 
     static napi_value flush(napi_env env, napi_callback_info info);
 

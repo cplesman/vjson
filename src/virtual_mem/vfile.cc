@@ -18,7 +18,7 @@ void vmem_binToHexString(char *result, const unsigned char *bin, int size) {
 	result[len * 2] = 0;
 }
 
-void vmem::extend() {
+long vmem::extend() {
 	//first create a memory block to hold the heap queue
 	//so that if we need to free memory to mov heap queue
 	vblock b;
@@ -26,40 +26,40 @@ void vmem::extend() {
 	b.m_size = VMEM_FILEBLOCKSIZE | 1/*set to used initialy*/;
 
 	i64 endBlockLoc = m_size;
-	openFileBlock(endBlockLoc, "w");// open_mem(filename, "w");
-	long long err;
+	long long err = openFileBlock(endBlockLoc, "w");// open_mem(filename, "w");
+	if(err<0) return (long)err;
 	err = m_fileInterface->write(&b, sizeof(vblock));
 	if (err != sizeof(vblock)) {
 		m_fileInterface->close();
-		throw vmem_exception("FILEIO");
+		return err >=0  ?  VMEM_ERROR_FILEIO : (long)err;
 	}
-	writeBigEmptyBlock(VMEM_FILEBLOCKSIZE - sizeof(vblock));
+	err = writeBigEmptyBlock(VMEM_FILEBLOCKSIZE - sizeof(vblock)); //doesn't close on error
 	m_fileInterface->close();
+	if(err<0) return err; //return after closing file
 
 	m_size += VMEM_FILEBLOCKSIZE;
-	freeBlock(endBlockLoc); //place block back in free list
+	return freeBlock(endBlockLoc); //place block back in free list
 }
 
 
-void vmem::openFileBlock(i64 p_blockLoc, const char *flags){
+long vmem::openFileBlock(i64 p_blockLoc, const char *flags){
 	m_pathBuffer = m_dir;
 	i64 upper = p_blockLoc >> VMEM_FILEBLOCKSHIFT;
 	char hex[16];
 	vmem_binToHexString(hex, (unsigned char*)&upper, sizeof(i64) - (VMEM_FILEBLOCKSHIFT / 8));
 	m_pathBuffer += hex;
 	long err = m_fileInterface->open(m_pathBuffer.str(), flags);
-	if (err<0) {
-		throw vmem_exception("FILEIO");
-	}
+	return err <0 ? VMEM_ERROR_FILEIO : err;
 }
 
 #define VMEM_INITCHUNKSIZE		(VMEM_FILEBLOCKSIZE>>8)
-void vmem::writeBigEmptyBlock(i64 p_size){
+long vmem::writeBigEmptyBlock(i64 p_size){
+	//assume file is open already
 	char *tmp = new char[VMEM_INITCHUNKSIZE];
 	long long err;
 	if (!tmp) {
-		m_fileInterface->close();
-		throw vmem_exception("OOM");
+		//m_fileInterface->close();
+		return VMEM_ERROR_OOM;
 	}
 	memset(tmp, 0xef, VMEM_INITCHUNKSIZE);
 	i64 i = 0;
@@ -71,30 +71,31 @@ void vmem::writeBigEmptyBlock(i64 p_size){
 		err = m_fileInterface->write(tmp, size);
 		if (err != size) {
 			delete [] tmp;
-			m_fileInterface->close();
-			throw vmem_exception("FILEIO");
+			//m_fileInterface->close();
+			return VMEM_ERROR_FILEIO;
 		}
 	}
 	delete[] tmp;
+	return 0;
 }
-void vmem::loadFileBlock(char *p_block, i64 p_blockLoc){
-	openFileBlock(p_blockLoc, "rb");
+long vmem::loadFileBlock(char *p_block, i64 p_blockLoc){
+	long e = openFileBlock(p_blockLoc, "rb"); if(e<0) return e;
 	long long err = m_fileInterface->read(p_block, VMEM_FILEBLOCKSIZE);
 	m_fileInterface->close();
-	if (err != VMEM_FILEBLOCKSIZE) {
-		throw new vmem_exception("FILEIO");
-	}
+	return err<0 ? VMEM_ERROR_FILEIO : err;
 }
-void vmem::saveFileBlock(char *p_block, i64 p_blockLoc){
-	openFileBlock(p_blockLoc, "wb");
+long vmem::saveFileBlock(char *p_block, i64 p_blockLoc){
+	long e = openFileBlock(p_blockLoc, "wb");
+	if(e<0) return e;
 	//i64 loc = p_blockLoc & VMEM_FILEBLOCKMASK;
 	i64 err = m_fileInterface->write(p_block, VMEM_FILEBLOCKSIZE);
 	m_fileInterface->close();
 	if (err != VMEM_FILEBLOCKSIZE) {
-		throw vmem_exception("FILEIO");
+		return VMEM_ERROR_FILEIO;
 	}
+	return 0;
 }
-void vmem::readFileBlock(vcache **p_retBlock, i64 p_blockLoc){
+long vmem::readFileBlock(vcache **p_retBlock, i64 p_blockLoc){
 	long key = getCacheKey(p_blockLoc);
 	i64 cloc = p_blockLoc & (~(VMEM_FILEBLOCKSIZE - 1));
 	vcache *citr = m_cache[key];
@@ -104,38 +105,32 @@ void vmem::readFileBlock(vcache **p_retBlock, i64 p_blockLoc){
 			if (citr->m_hits < 0x1000)
 				citr->m_hits++;
 			*p_retBlock = citr;
-			return;
+			return 0; //no error
 		}
 		//prev = citr;
 		citr = citr->m_next;
 	}
 	char *ba = new char[VMEM_FILEBLOCKSIZE];
 	if (!ba) {
-		m_fileInterface->close();
-		throw vmem_exception("OOM");
+		return VMEM_ERROR_OOM;
 	}
-	try {
-		loadFileBlock(ba, p_blockLoc);
-	}
-	catch (vmem_exception e) {
+	long err = loadFileBlock(ba, p_blockLoc);
+	if(err<0) {
 		delete[] ba;
 		//file closed by loadFileBlock()
-		throw e;
+		return err;
 	}
 	vcache *c = new vcache;
 	if (!c) {
 		delete[] ba;
-		m_fileInterface->close();
-		throw vmem_exception("OOM");
+		return VMEM_ERROR_OOM;
 	}
 	while (sizeof(vblock) + m_cacheSize > VMEM_MAXCACHESIZE) {
-		try {
-			removeLowestHitCache();
-		}
-		catch (vmem_exception e) {
+		err = removeLowestHitCache();
+		if(err<0) {
 			delete[] ba;
 			//file closed by saveFileBlock in removeLowestHitCache()
-			throw e;
+			return err;
 		}
 	}
 	c->m_next = m_cache[key];
@@ -147,4 +142,6 @@ void vmem::readFileBlock(vcache **p_retBlock, i64 p_blockLoc){
 	m_cache[key] = c;
 	m_cacheSize += VMEM_FILEBLOCKSIZE + sizeof(vcache);
 	*p_retBlock = c;
+
+	return 0;
 }

@@ -8,21 +8,9 @@
 #define VMEM_FILEBLOCKSIZE		((i64)1<<VMEM_FILEBLOCKSHIFT)
 #define VMEM_FILEBLOCKMASK		((VMEM_FILEBLOCKSIZE-1)&(ARCH_BOUNDARY_MASK))
 
-class vmem_exception {
-	char msg[8];
-public:
-	vmem_exception(const char *msg) {
-		long i = 0;
-		while (msg[i] && i<7) {
-			this->msg[i] = msg[i];
-			i++;
-		}
-		this->msg[i] = 0;
-	}
-	const char*Msg() {
-		return msg;
-	}
-};
+#define VMEM_ERROR_FILEIO		-0XA
+#define VMEM_ERROR_OOM  		-0XB
+#define VMEM_ERROR_PATHIO  		-0XC
 
 class vmem {
 	//m_start and m_size must be together, m_start first
@@ -41,24 +29,24 @@ protected:
 	ifile *m_fileInterface;
 
 	i64 allocBlock(i64 p_size);
-	void freeBlock(i64 p_blockLoc);
+	long freeBlock(i64 p_blockLoc);
 	vblock *readBlock(i64 p_blockLoc);
 
-	void extend();
+	long extend();
 
-	void openFileBlock(i64 m_blockLoc, const char *flags);
-	void writeBigEmptyBlock(i64 p_size);
-	void loadFileBlock(char *p_block, i64 p_blockLoc);
-	void saveFileBlock(char *p_block, i64 p_blockLoc);
-	void readFileBlock(vcache **p_retBlock, i64 p_blockLoc);
+	long openFileBlock(i64 m_blockLoc, const char *flags);
+	long writeBigEmptyBlock(i64 p_size);
+	long loadFileBlock(char *p_block, i64 p_blockLoc);
+	long saveFileBlock(char *p_block, i64 p_blockLoc);
+	long readFileBlock(vcache **p_retBlock, i64 p_blockLoc);
 
 	long getCacheKey(i64 p_loc) {
 		return ((p_loc >> VMEM_FILEBLOCKSHIFT)&(VMEM_CACHETABLEMASK));
 	}
-	void freeCache(vcache *c);
-	void flushCache(vcache *c);
-	void removeLowestHitCache();
-	void destroy();
+	long freeCache(vcache *c);
+	long flushCache(vcache *c);
+	long removeLowestHitCache();
+	long destroy();
 public:
 	vmem(const char *path, ifile*fileInterface/*vmem will be responsible for deletion*/);
 	~vmem();
@@ -68,24 +56,25 @@ public:
 	virtual i64 WriteGenBlock(void *toMem);
 	virtual i64 ReadGenBlock(const void *fromMem);
 
-	void Init();
-	void Close();
+	long Init();
+	long Close();
 
-	void Flush() {
+	long Flush() {
 		int i;
 		for (i = 0; i < VMEM_CACHETABLESIZE; i++) {
 			vcache *citr = m_cache[i];
 			while (citr) {
-				flushCache(citr);
+				long err = flushCache(citr); if(err<0) return err;
 				citr = citr->m_next;
 			}
 		}
+		return 0;
 	}
 
 	i64 Alloc(i64 p_size);
-	void Free(i64 p_loc);
-	void *Lock(i64 p_loc);
-	void Unlock(i64 p_loc);
+	long Free(i64 p_loc);
+	void *Lock(i64 p_loc, bool p_readonly=false);
+	long Unlock(i64 p_loc);
 
 	i64 CalculateFree();
 

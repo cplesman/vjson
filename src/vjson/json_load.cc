@@ -15,12 +15,12 @@ long jsonundefined::Load(i64 p_obj, stream* buf, char lastCh) {
 		}
 		i++;
 	}
-	jsonundefined* obj = (jsonundefined*)g_jsonMem->Lock(p_obj);
-	g_jsonMem->Unlock(p_obj);
+	// jsonundefined* obj = (jsonundefined*)g_jsonMem->Lock(p_obj);
+	// g_jsonMem->Unlock(p_obj);
 	return 'd'; //return last char read
 }
 
-long jsonobj_Load(i64 p_obj, stream* buf, char lastCh) {
+long jsonobj::Load(i64 p_obj, stream* buf, char lastCh) {
 	int err;
 	char ch;
 
@@ -118,11 +118,12 @@ long jsonobj_Load(i64 p_obj, stream* buf, char lastCh) {
 	i64 *table = (i64*)g_jsonMem->Lock(obj->m_tableLoc);
 	while (itr) {
 		jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr);
-		unsigned long key = obj->calculateHashKey((char*)g_jsonMem->Lock(itrPtr->key));
+		unsigned long key = obj->calculateHashKey((char*)g_jsonMem->Lock(itrPtr->key,true));
 		g_jsonMem->Unlock(itrPtr->key);
 		i64 next = itrPtr->next; //save next because we are changing itr->next
 		itrPtr->next = table[key];
 		table[key] = itr;
+		obj->m_keycount++;
 		g_jsonMem->Unlock(itr);
 		g_jsonMem->Unlock(itr); //unlock 2 times because we Locked another time when creating key
 		itr = next;
@@ -133,7 +134,7 @@ long jsonobj_Load(i64 p_obj, stream* buf, char lastCh) {
 	return ch;
 }
 
-long jsonobj_Load(i64 p_obj, stream* buf) {
+long jsonobj::Load(i64 p_obj, stream* buf) {
 	//move to '{'
 	int err = JSON_movepastwhite(buf);
 	if (err < 0) { return err; }
@@ -143,10 +144,10 @@ long jsonobj_Load(i64 p_obj, stream* buf) {
 		return JSON_ERROR_INVALIDDATA; //syntax error
 	}
 
-	return jsonobj_Load(p_obj, buf, '{');
+	return jsonobj::Load(p_obj, buf, '{');
 }
 
-long jsonarray_Load(i64 p_obj, stream* buf) {
+long jsonarray::Load(i64 p_obj, stream* buf) {
 	//move to '{'
 	int err = JSON_movepastwhite(buf);
 	if (err < 0) { return err; }
@@ -156,7 +157,7 @@ long jsonarray_Load(i64 p_obj, stream* buf) {
 		return JSON_ERROR_INVALIDDATA; //syntax error
 	}
 
-	return jsonarray_Load(p_obj, buf, '[');
+	return jsonarray::Load(p_obj, buf, '[');
 }
 
 class jsonarrayitemlink {
@@ -165,7 +166,7 @@ public:
 	i64 val;
 	jsonarrayitemlink* next;
 };
-long jsonarray_Load(i64 p_obj, stream* buf, char lastCh) {
+long jsonarray::Load(i64 p_obj, stream* buf, char lastCh) {
 	int err;
 	char ch;
 	jsonarray* obj = (jsonarray*)g_jsonMem->Lock(p_obj);
@@ -226,7 +227,7 @@ long jsonarray_Load(i64 p_obj, stream* buf, char lastCh) {
 	return err;
 }
 
-long jsonstring_Load(i64 p_obj, stream* buf, char lastCh) {
+long jsonstring::Load(i64 p_obj, stream* buf, char lastCh) {
 	int err = JSON_parseString_iterateQuote_getLength(lastCh, buf);
 	if (err < 0) { return err; }
 	jsonstring* obj = (jsonstring*)g_jsonMem->Lock(p_obj);
@@ -241,7 +242,7 @@ long jsonstring_Load(i64 p_obj, stream* buf, char lastCh) {
 	return lastCh;
 }
 
-long jsonnumber_Load(i64 p_obj, stream* buf, char lastCh) {
+long jsonnumber::Load(i64 p_obj, stream* buf, char lastCh) {
 	char numstr[32];
 	numstr[0] = lastCh;
 	int err = JSON_parseString_iterateNumber(numstr + 1, buf);
@@ -252,7 +253,7 @@ long jsonnumber_Load(i64 p_obj, stream* buf, char lastCh) {
 	return numstr[err]; //return last number as ch
 }
 
-long jsonboolean_Load(i64 p_obj, stream* buf, char lastCh) {
+long jsonboolean::Load(i64 p_obj, stream* buf, char lastCh) {
 	const char* boolstr = (lastCh == 't') ? "true" : "false";
 	int i = 1;
 	while(i< (boolstr[0]=='t'?4:5) ) {
@@ -270,7 +271,7 @@ long jsonboolean_Load(i64 p_obj, stream* buf, char lastCh) {
 	return 'e'; //return last char read (always 'e' in true/false)
 }
 
-long jsonnull_Load(i64 p_obj, stream* buf, char lastCh) {
+long jsonnull::Load(i64 p_obj, stream* buf, char lastCh) {
 	const char* nullstr = "null";
 	int i = 1;
 	while(i< 4 ) {
@@ -282,7 +283,7 @@ long jsonnull_Load(i64 p_obj, stream* buf, char lastCh) {
 		}
 		i++;
 	}
-	jsonnull* obj = (jsonnull*)g_jsonMem->Lock(p_obj);
-	g_jsonMem->Unlock(p_obj);
+	// jsonnull* obj = (jsonnull*)g_jsonMem->Lock(p_obj);
+	// g_jsonMem->Unlock(p_obj);
 	return 'l'; //return last char read
 }

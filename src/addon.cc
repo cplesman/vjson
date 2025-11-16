@@ -65,7 +65,9 @@ class JsonMM : public vmem{
 public:
 	i64 m_globalObjLoc;
 
-	JsonMM(const char *dbPath) :vmem(dbPath, new fileio()) {}
+	JsonMM(const char *dbPath) :vmem(dbPath, new fileio()) {
+        m_globalObjLoc = 0;
+    }
 	~JsonMM() {}
 
 	i64 ReadGenBlock(const void* fromMem) override {
@@ -105,8 +107,6 @@ napi_status helper_checkparams(napi_env env, napi_callback_info info, size_t arg
 void freeMem(napi_env env, void* data, void* hint);
 napi_value initMem(napi_env env, napi_callback_info info){ //allocate and wrap oject
     napi_value js_obj;
-    napi_get_null(env, &js_obj);
-    return js_obj;
     size_t argc = 1; napi_value argv[1]; JsonMM *mem;
     napi_valuetype expectedTypes[1] = {napi_string};
     napi_status err = helper_checkparams(env,info,argc, argv, expectedTypes);
@@ -116,15 +116,16 @@ napi_value initMem(napi_env env, napi_callback_info info){ //allocate and wrap o
     }
     char str[512]; size_t strSize;
     napi_get_value_string_utf8(env, argv[0],str,512-1,&strSize);
-    try{
-        mem = new JsonMM(str);
-        mem->Init();
-        napi_create_object(env, &js_obj);
-        napi_wrap(env,js_obj,mem,freeMem,NULL, NULL);
+    mem = new JsonMM(str);
+    long e = mem->Init();
+    if(e<0){
+        //napi_throw_error(env, "-10", "failed to initialize memory manager");
+        napi_create_int64(env, e, &js_obj);
+        //napi_get_null(env, &js_obj);
+        return js_obj;
     }
-    catch(vmem_exception e){
-        napi_create_string_utf8(env,"failed to init", 14, &js_obj);
-    }
+    napi_create_object(env, &js_obj);
+    napi_wrap(env,js_obj,mem,freeMem,NULL, NULL);
     return js_obj;
 }
 void freeMem(napi_env env, void* data, void* hint){         //called when object is garbage collected

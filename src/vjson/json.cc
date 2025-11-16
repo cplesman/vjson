@@ -7,25 +7,26 @@ using namespace std;
 
 vmem *g_jsonMem;
 
-long jsonobj_Type() { return JSON_OBJ; }
-long jsonarray_Type() { return JSON_ARRAY; }
-long jsonstring_Type() { return JSON_STRING; }
-long jsonnumber_Type() { return JSON_NUMBER; }
-long jsonboolean_Type() { return JSON_BOOLEAN; }
-long jsonnull_Type() { return JSON_NULL; }
+long jsonobj::Type() { return JSON_OBJ; }
+long jsonarray::Type() { return JSON_ARRAY; }
+long jsonstring::Type() { return JSON_STRING; }
+long jsonnumber::Type() { return JSON_NUMBER; }
+long jsonboolean::Type() { return JSON_BOOLEAN; }
+long jsonnull::Type() { return JSON_NULL; }
 long jsonundefined::Type() { return JSON_UNDEFINED; }
 
-long jsonobj_Create(i64* p_obj) {
+long jsonobj::Create(i64* p_obj) {
 	*p_obj = g_jsonMem->Alloc(sizeof(jsonobj));
 	if(!*p_obj) return JSON_ERROR_OUTOFMEMORY;
 	jsonobj *obj = (jsonobj*)g_jsonMem->Lock(*p_obj);
 	obj->m_ftable = JSON_OBJ;
 	obj->m_tablesize = 0;
+	obj->m_keycount = 0;
 	obj->m_tableLoc = 0;
 	g_jsonMem->Unlock(*p_obj);
 	return 0;
 }
-long jsonarray_Create(i64* p_obj) {
+long jsonarray::Create(i64* p_obj) {
 	*p_obj = g_jsonMem->Alloc(sizeof(jsonarray));
 	if(!*p_obj) return JSON_ERROR_OUTOFMEMORY;
 	jsonarray *obj = (jsonarray*)g_jsonMem->Lock(*p_obj);
@@ -36,7 +37,7 @@ long jsonarray_Create(i64* p_obj) {
 	g_jsonMem->Unlock(*p_obj);
 	return 0;
 }
-long jsonstring_Create(i64* p_obj) {
+long jsonstring::Create(i64* p_obj) {
 	*p_obj = g_jsonMem->Alloc(sizeof(jsonstring));
 	if(!*p_obj) return JSON_ERROR_OUTOFMEMORY;
 	jsonstring *obj = (jsonstring*)g_jsonMem->Lock(*p_obj);
@@ -45,7 +46,7 @@ long jsonstring_Create(i64* p_obj) {
 	g_jsonMem->Unlock(*p_obj);
 	return 0;
 }
-long jsonnumber_Create(i64* p_obj) {
+long jsonnumber::Create(i64* p_obj) {
 	*p_obj = g_jsonMem->Alloc(sizeof(jsonnumber));
 	if(!*p_obj) return JSON_ERROR_OUTOFMEMORY;
 	jsonnumber *obj = (jsonnumber*)g_jsonMem->Lock(*p_obj);
@@ -54,7 +55,7 @@ long jsonnumber_Create(i64* p_obj) {
 	g_jsonMem->Unlock(*p_obj);
 	return 0;
 }
-long jsonboolean_Create(i64* p_obj) {
+long jsonboolean::Create(i64* p_obj) {
 	*p_obj = g_jsonMem->Alloc(sizeof(jsonboolean));
 	if(!*p_obj) return JSON_ERROR_OUTOFMEMORY;
 	jsonboolean *obj = (jsonboolean*)g_jsonMem->Lock(*p_obj);
@@ -71,7 +72,7 @@ long jsonundefined::Create(i64* p_obj) {
 	g_jsonMem->Unlock(*p_obj);
 	return 0;
 }
-long jsonnull_Create(i64* p_obj) {
+long jsonnull::Create(i64* p_obj) {
 	*p_obj = g_jsonMem->Alloc(sizeof(jsonnull));
 	if(!*p_obj) return JSON_ERROR_OUTOFMEMORY;
 	jsonnull *obj = (jsonnull*)g_jsonMem->Lock(*p_obj);
@@ -80,17 +81,17 @@ long jsonnull_Create(i64* p_obj) {
 	return 0;
 }
 
-void jsonobj_Free(_jsonobj* p_obj) {
+void jsonobj::Free(_jsonobj* p_obj) {
 	jsonobj* obj = (jsonobj*)p_obj;
 	obj->FreeChildren();
 }
-void jsonobj_Delete(i64 p_obj) {
+void jsonobj::Delete(i64 p_obj) {
 	jsonobj* obj = (jsonobj*)g_jsonMem->Lock(p_obj);
-	jsonobj_Free(obj);
+	jsonobj::Free(obj);
 	g_jsonMem->Unlock(p_obj);
 	g_jsonMem->Free(p_obj);
 }
-void jsonarray_Free(_jsonobj* p_obj) {
+void jsonarray::Free(_jsonobj* p_obj) {
 	jsonarray* obj = (jsonarray*)p_obj;
 	if(obj->m_size){
 		obj->Resize(0);
@@ -99,48 +100,48 @@ void jsonarray_Free(_jsonobj* p_obj) {
 		g_jsonMem->Free(obj->m_dataLoc);
 	}
 }
-void jsonarray_Delete(i64 p_obj) {
+void jsonarray::Delete(i64 p_obj) {
 	jsonarray* obj = (jsonarray*)g_jsonMem->Lock(p_obj);
-	jsonarray_Free(obj);
+	jsonarray::Free(obj);
 	g_jsonMem->Unlock(p_obj);
 	g_jsonMem->Free(p_obj);
 }
-void jsonstring_Free(_jsonobj* obj) {
+void jsonstring::Free(_jsonobj* obj) {
 	if(((jsonstring*)obj)->m_str){
 		g_jsonMem->Free(((jsonstring*)obj)->m_str);
 	}
 }
-void jsonstring_Delete(i64 p_obj) {
+void jsonstring::Delete(i64 p_obj) {
 	jsonstring* obj = (jsonstring*)g_jsonMem->Lock(p_obj);
-	jsonstring_Free(obj);
+	jsonstring::Free(obj);
 	g_jsonMem->Unlock(p_obj);
 	g_jsonMem->Free(p_obj);
 }
-void jsonnumber_Free(_jsonobj* obj) {
+void jsonnumber::Free(_jsonobj* obj) {
 	//nothing to free
 }
-void jsonnumber_Delete(i64 p_obj) {
+void jsonnumber::Delete(i64 p_obj) {
 	jsonnumber* obj = (jsonnumber*)g_jsonMem->Lock(p_obj);
-	jsonnumber_Free(obj);
+	jsonnumber::Free(obj);
 	g_jsonMem->Unlock(p_obj);
 	g_jsonMem->Free(p_obj);
 }
-void jsonboolean_Free(_jsonobj* obj) {
+void jsonboolean::Free(_jsonobj* obj) {
 	//nothing to free
 }
-void jsonboolean_Delete(i64 p_obj) {
+void jsonboolean::Delete(i64 p_obj) {
 	jsonboolean* obj = (jsonboolean*)g_jsonMem->Lock(p_obj);
-	jsonboolean_Free(obj);
+	jsonboolean::Free(obj);
 	g_jsonMem->Unlock(p_obj);
 	g_jsonMem->Free(p_obj);
 }
 
-void jsonnull_Free(_jsonobj* obj) {
+void jsonnull::Free(_jsonobj* obj) {
 	//nothing to free
 }
-void jsonnull_Delete(i64 p_obj) {
+void jsonnull::Delete(i64 p_obj) {
 	jsonnull* obj = (jsonnull*)g_jsonMem->Lock(p_obj);
-	jsonnull_Free(obj);
+	jsonnull::Free(obj);
 	g_jsonMem->Unlock(p_obj);
 	g_jsonMem->Free(p_obj);
 }
@@ -156,46 +157,46 @@ void jsonundefined::Delete(i64 p_obj) {
 }
 
 jsonobj_functable jsonobj_ftable = {
-	jsonobj_Type,
-	jsonobj_Create,
-	jsonobj_Delete,
-	jsonobj_Free,
-	jsonobj_Load,
+	jsonobj::Type,
+	jsonobj::Create,
+	jsonobj::Delete,
+	jsonobj::Free,
+	jsonobj::Load,
 };
 jsonobj_functable jsonarray_ftable = {
-	jsonarray_Type,
-	jsonarray_Create,
-	jsonarray_Delete,
-	jsonarray_Free,
-	jsonarray_Load
+	jsonarray::Type,
+	jsonarray::Create,
+	jsonarray::Delete,
+	jsonarray::Free,
+	jsonarray::Load
 };
 jsonobj_functable jsonstring_ftable = {
-	jsonstring_Type,
-	jsonstring_Create,
-	jsonstring_Delete,
-	jsonstring_Free,
-	jsonstring_Load
+	jsonstring::Type,
+	jsonstring::Create,
+	jsonstring::Delete,
+	jsonstring::Free,
+	jsonstring::Load
 };
 jsonobj_functable jsonnumber_ftable = {
-	jsonnumber_Type,
-	jsonnumber_Create,
-	jsonnumber_Delete,
-	jsonnumber_Free,
-	jsonnumber_Load
+	jsonnumber::Type,
+	jsonnumber::Create,
+	jsonnumber::Delete,
+	jsonnumber::Free,
+	jsonnumber::Load
 };
 jsonobj_functable jsonboolean_ftable = {
-	jsonboolean_Type,
-	jsonboolean_Create,
-	jsonboolean_Delete,
-	jsonboolean_Free,
-	jsonboolean_Load
+	jsonboolean::Type,
+	jsonboolean::Create,
+	jsonboolean::Delete,
+	jsonboolean::Free,
+	jsonboolean::Load
 };
 jsonobj_functable jsonnull_ftable = {
-	jsonnull_Type,
-	jsonnull_Create,
-	jsonnull_Delete,
-	jsonnull_Free,
-	jsonnull_Load
+	jsonnull::Type,
+	jsonnull::Create,
+	jsonnull::Delete,
+	jsonnull::Free,
+	jsonnull::Load
 };
 
 jsonobj_functable jsonundefined_ftable = {
@@ -238,15 +239,17 @@ i64 jsonobj::operator [] (const unsigned long p_idx) {
 //	return 0;
 //}
 i64 jsonobj::Find(const char *p_key) {
+	if(!m_tablesize) return 0;
 	unsigned long k = calculateHashKey(p_key);
-	i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc);
+	i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc,true);
 	i64 itr = m_table[k];
 	while (itr) {
-		jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr);
-		char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key);
+		jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr,true);
+		char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key,true);
 		if (!strcmp(p_key, keyPtr)) {
 			g_jsonMem->Unlock(itrPtr->key);
 			g_jsonMem->Unlock(itr);
+			g_jsonMem->Unlock(m_tableLoc);
 			return itrPtr->val;
 		}
 		i64 next = itrPtr->next;
@@ -254,24 +257,26 @@ i64 jsonobj::Find(const char *p_key) {
 		g_jsonMem->Unlock(itr);
 		itr = next;
 	}
+	g_jsonMem->Unlock(m_tableLoc);
 	return 0; //nothing found
 }
 long jsonobj::Delete(const char *p_key) {
 	unsigned long k = calculateHashKey(p_key);
-	i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc);
-	i64 itr = m_table[k];
+	i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc,true); 
+	i64 itr = m_table[k]; g_jsonMem->Unlock(m_tableLoc);
 	i64 prev = 0;
 	while (itr) {
-		jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr);
-		char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key);
+		jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr,true);
+		char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key,true);
 		if (!strcmp(p_key, keyPtr)) {
 			g_jsonMem->Unlock(itrPtr->key); //done with key
 			itrPtr->Free(); 
 			i64 next = itrPtr->next; 
 			g_jsonMem->Unlock(itr);
-			if(!prev) {m_table[k]=next;}
+			if(!prev) {m_table = (i64*)g_jsonMem->Lock(m_tableLoc); m_table[k]=next; g_jsonMem->Unlock(m_tableLoc);}
 			else{ itrPtr = (jsonkeypair*)g_jsonMem->Lock(prev); itrPtr->next = next; g_jsonMem->Unlock(prev); } //de link itr from chain
 			g_jsonMem->Free(itr);
+			m_keycount--;
 			return 0;
 		}
 		i64 next = itrPtr->next;
@@ -285,17 +290,18 @@ long jsonobj::Delete(const char *p_key) {
 }
 long jsonobj::Replace(const char *p_key,i64 p_newval) {
 	unsigned long k = calculateHashKey(p_key);
-	i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc);
-	i64 itr = m_table[k];
+	i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc,true); 
+	i64 itr = m_table[k]; g_jsonMem->Unlock(m_tableLoc);
 	while (itr) {
 		jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr);
-		char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key);
+		char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key,true); //not replacing key so read only
 		if (!strcmp(p_key, keyPtr)) {
 			g_jsonMem->Unlock(itrPtr->key); //done with key
 			if(itrPtr->val){
 				_jsonobj* valPtr = (_jsonobj*)g_jsonMem->Lock(itrPtr->val);
+				unsigned long t =valPtr->m_ftable;
 				g_jsonMem->Unlock(itrPtr->val);
-				jsonobj_ftables[valPtr->m_ftable]->Delete(itrPtr->val);
+				jsonobj_ftables[t]->Delete(itrPtr->val);
 			}
 			itrPtr->val = p_newval;
 			g_jsonMem->Unlock(itr);
@@ -310,17 +316,18 @@ long jsonobj::Replace(const char *p_key,i64 p_newval) {
 	return JSON_ERROR_INVALIDDATA; //nothing found
 }
 
-void jsonarray::Delete(unsigned long index) {
+void jsonarray::DeleteIdx(unsigned long index) {
 	i64 *data = (i64*)g_jsonMem->Lock(m_dataLoc);
 	if(data[index]){
 		_jsonobj* objPtr = (_jsonobj*)g_jsonMem->Lock(data[index]);
 		i64 t = objPtr->m_ftable;
 		g_jsonMem->Unlock(data[index]);
 		jsonobj_ftables[t]->Delete(data[index]);
+		data[index] =0; //nullify index
 	}
 	g_jsonMem->Unlock(m_dataLoc);
 }
-void jsonarray::Replace(unsigned long index,i64 p_newval) {
+void jsonarray::ReplaceIdx(unsigned long index,i64 p_newval) {
 	i64 *data = (i64*)g_jsonMem->Lock(m_dataLoc);
 	if(data[index]){
 		_jsonobj* objPtr = (_jsonobj*)g_jsonMem->Lock(data[index]);
@@ -369,56 +376,56 @@ long JSON_parseVal(i64 *p_val, char lastch, stream *buf) {
 	char ch = lastch;
 	//determine type
 	if (ch == '{') { //obj in obj
-		err = jsonobj_Create(p_val);
+		err = jsonobj::Create(p_val);
 		if (err < 0) { return err; }
 
-		err = jsonobj_Load(*p_val,buf, ch);
-		if (err < 0) { jsonobj_Delete(*p_val); *p_val = 0; return err; }
+		err = jsonobj::Load(*p_val,buf, ch);
+		if (err < 0) { jsonobj::Delete(*p_val); *p_val = 0; return err; }
 
 		return '}'; //ch
 	}
 	else if (ch == '[') {
-		err = jsonarray_Create(p_val);
+		err = jsonarray::Create(p_val);
 		if (err < 0) { return err; }
 
-		err = jsonarray_Load(*p_val,buf, ch);
-		if (err < 0) { if(*p_val) jsonarray_Delete(*p_val); *p_val = 0; return err; }
+		err = jsonarray::Load(*p_val,buf, ch);
+		if (err < 0) { if(*p_val) jsonarray::Delete(*p_val); *p_val = 0; return err; }
 
 		return ']';//ch
 	}
 	else if (ch == '\'' || ch == '\"') {
-		err = jsonstring_Create(p_val);
+		err = jsonstring::Create(p_val);
 		if (err < 0) { if(*p_val) return err; }
 
-		err = jsonstring_Load(*p_val,buf, ch);
-		if (err < 0) { jsonstring_Delete(*p_val); *p_val = 0; return err; }
+		err = jsonstring::Load(*p_val,buf, ch);
+		if (err < 0) { jsonstring::Delete(*p_val); *p_val = 0; return err; }
 
 		return err; 
 	}
 	else if ((ch >= '0'&& ch <= '9')||ch=='-') {
-		err = jsonnumber_Create(p_val);
+		err = jsonnumber::Create(p_val);
 		if (err < 0) { if(*p_val) return err; }
 
-		err = jsonnumber_Load(*p_val,buf, ch);
-		if (err < 0) { jsonnumber_Delete(*p_val); *p_val = 0; return err; }
+		err = jsonnumber::Load(*p_val,buf, ch);
+		if (err < 0) { jsonnumber::Delete(*p_val); *p_val = 0; return err; }
 
 		return err; 
 	}
 	else if( (ch=='t') || (ch=='f') ) {
-		err = jsonboolean_Create(p_val);
+		err = jsonboolean::Create(p_val);
 		if (err < 0) { if(*p_val) return err; }
 
-		err = jsonboolean_Load(*p_val,buf, ch);
-		if (err < 0) { jsonboolean_Delete(*p_val); *p_val = 0; return err; }
+		err = jsonboolean::Load(*p_val,buf, ch);
+		if (err < 0) { jsonboolean::Delete(*p_val); *p_val = 0; return err; }
 
 		return err; 
 	}
 	else if( (ch=='n') ) {
-		err = jsonnull_Create(p_val);
+		err = jsonnull::Create(p_val);
 		if (err < 0) { if(*p_val) return err; }
 
-		err = jsonnull_Load(*p_val,buf, ch);
-		if (err < 0) { jsonnull_Delete(*p_val); *p_val = 0; return err; }
+		err = jsonnull::Load(*p_val,buf, ch);
+		if (err < 0) { jsonnull::Delete(*p_val); *p_val = 0; return err; }
 
 		return err; 
 	}

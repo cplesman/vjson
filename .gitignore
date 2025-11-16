@@ -1,5 +1,4 @@
 node_modules/
 output/
 build/
-.vscode/browse*
-browse*
+.vscode/

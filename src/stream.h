@@ -1,5 +1,7 @@
 #pragma once
+#ifdef _WIN32
 #pragma warning(disable: 26495)
+#endif
 
 #define STREAM_BUFFERSIZE		512
 

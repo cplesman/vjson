@@ -30,30 +30,31 @@ i64 vmem::ReadGenBlock(const void*fromMem) {
 	//virtually overload these functions to write/read initial settings
 	return 0;
 }
-void vmem::Init(){
+long vmem::Init(){
 	ifile_attribute info = m_fileInterface->attributes(m_dir.str());
+	long err =0;
 	if (info == ifile_attribute::IFILE_ERROR) {
 		if (m_fileInterface->mkdir(m_dir.str()) < 0) {
-			throw vmem_exception("PATHIO");
+			err = VMEM_ERROR_PATHIO;
 		}
 	}
 	else if (info != ifile_attribute::IFILE_ISDIR) {
-		throw vmem_exception("PATHIO");
+		err = VMEM_ERROR_PATHIO;
 	}
+	if(err<0) return err;
 
 	vcache *genBlock;
-	try {
-		readFileBlock(&genBlock, 0);
-	}
-	catch (vmem_exception e) {
-		if (strcmp(e.Msg(), "FILEIO")) {
-			throw e; //not a file io error
+	err = readFileBlock(&genBlock, 0);
+	if(err<0) {
+		if (err!=VMEM_ERROR_FILEIO) {
+			return err; //not a file io error
 		}
-		openFileBlock(0, "w");
-		writeBigEmptyBlock(VMEM_FILEBLOCKSIZE);
+		err = openFileBlock(0, "w"); if(err<0) return err;
+		err = writeBigEmptyBlock(VMEM_FILEBLOCKSIZE);
 		m_fileInterface->close();
+		if(err<0) return err;
 
-		readFileBlock(&genBlock, 0);
+		err = readFileBlock(&genBlock, 0);  if(err<0) return err;
 
 		vblock b;
 		m_size = VMEM_FILEBLOCKSIZE; //size of initial block and also location for next extension
@@ -62,34 +63,36 @@ void vmem::Init(){
 		i64 size;
 		size = WriteGenBlock(genBlock->m_mem);
 		if (size < 0) {
-			throw vmem_exception("FILEIO");
+			return (long)size; //error
 		}
 		m_start = size + (i64)sizeof(m_start) + (i64)sizeof(m_size);
 		b.m_size -= m_start;
 		memcpy(genBlock->m_mem + size, &m_start, (i64)sizeof(m_start) + sizeof(m_size));
 		size += (i64)sizeof(m_start) + sizeof(m_size);
 		memcpy(genBlock->m_mem + size, &b, sizeof(vblock));
+		genBlock->m_flags |= VMEM_CACHEFLAG_DIRTY;
 	}
 	i64 size = ReadGenBlock(genBlock->m_mem);
 	if (size < 0) {
-		throw vmem_exception("FILEIO");
+		return (long)size; //error
 	}
 	memcpy(&m_start, genBlock->m_mem + size, (i64)sizeof(m_start) + sizeof(m_size));
 	isOpen = true;
+	return err;
 }
-void vmem::Close() {
-	destroy();
+long vmem::Close() {
+	return destroy();
 }
-void vmem::destroy() {
+long vmem::destroy() {
 	if (!isOpen) {
-		return;
+		return 0;
 	}
 	vcache *genBlock;
-	readFileBlock(&genBlock, 0);
+	long err = readFileBlock(&genBlock, 0); if(err<0) return err;
 
 	i64 size = WriteGenBlock(genBlock->m_mem);
 	if (size < 0) {
-		throw vmem_exception("FILEIO");
+		return (long)size;
 	}
 	memcpy(genBlock->m_mem+ size, &m_start, (i64)sizeof(m_start) + sizeof(m_size));
 
@@ -98,7 +101,8 @@ void vmem::destroy() {
 		vcache *citr;
 		while ((citr = m_cache[i])) {
 			vcache *next = citr->m_next;
-			freeCache(citr);
+			long err = freeCache(citr);
+			if(err<0) return err;
 			m_cache[i] = next;
 		}
 	}
@@ -106,51 +110,54 @@ void vmem::destroy() {
 	assert(m_cacheSize == 0);
 #endif
 	isOpen = false;
+	return 0;
 }
 
 i64 vmem::Alloc(i64 p_size) {
 	i64 loc;
 	loc = allocBlock(p_size);
 	if (loc == 0) {
-		extend();
+		long err = extend(); if(err<0) return err;
 		loc = allocBlock( p_size);
 		if (loc == 0) {
-			throw vmem_exception("OOHD"); //memory is larger than a FILEBLOCKSIZE? ran out of harddrive space?
+			return VMEM_ERROR_OOM;
 		}
 		//else failed to extend memory (could be because we ran out of drive space)
 	}
 	return loc;
 }
-void vmem::Free(i64 p_loc) {
-	freeBlock(p_loc);
+long vmem::Free(i64 p_loc) {
+	return freeBlock(p_loc);
 }
 i64 vmem::SizeOf(i64 loc) {
 	vcache *cache;
-	readFileBlock(&cache, loc);
+	i64 err = readFileBlock(&cache, loc);
+	if(err<0) return err;
 
 	vblock *b = (vblock*)(cache->m_mem + (loc&VMEM_FILEBLOCKMASK));
 	return b->m_size - sizeof(i64);
 }
-void *vmem::Lock(i64 loc) {
+void *vmem::Lock(i64 loc,bool p_readonly) {
 	vcache *cache;
-	readFileBlock(&cache, loc);
+	long err = readFileBlock(&cache, loc); if(err<0) return 0;
 
 	vblock *b = (vblock*)(cache->m_mem + (loc&VMEM_FILEBLOCKMASK));
 	void *lockedMem = (void*)(((i64*)b) + 1);
 
 	cache->m_lockCount++;
-	cache->m_flags |= VMEM_CACHEFLAG_DIRTY;
+	if(!p_readonly) cache->m_flags |= VMEM_CACHEFLAG_DIRTY;
 
 	return lockedMem;
 }
-void vmem::Unlock(i64 loc) {
+long vmem::Unlock(i64 loc) {
 	vcache *cache;
-	readFileBlock(&cache, loc);
+	long err = readFileBlock(&cache, loc); if(err<0) return err;
 #ifdef _DEBUG
 	assert(cache->m_lockCount > 0);
 #endif
 	cache->m_lockCount--;
 	//was already set to DIRTY in Lock()
+	return err;
 }
 
 
@@ -162,14 +169,14 @@ i64 vmem::CalculateFree() {
 
 	vblock *b = readBlock(m_start);
 	if (b == 0) {
-		return -1;
+		return VMEM_ERROR_FILEIO;
 	}
 	size += VMEM_BLOCKSIZE(b);
 
 	while (b->m_next) {
 		b = readBlock( b->m_next);
 		if (b == 0) {
-			return -1;
+			return VMEM_ERROR_FILEIO;
 		}
 		size += VMEM_BLOCKSIZE(b);
 	}

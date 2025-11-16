@@ -1,5 +1,7 @@
 #pragma once
+#ifdef _WIN32
 #pragma warning(disable: 26495)
+#endif
 
 #include "../stream.h"
 #include "../virtual_mem/virtual_mem.h"
@@ -100,8 +102,23 @@ public:
 };
 
 class jsonobj : public _jsonobj {
+private:
+	long addChild(i64 childLoc) {
+		jsonkeypair* child = (jsonkeypair*)g_jsonMem->Lock(childLoc);
+		i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc);
+		char *keyPtr = (char*)g_jsonMem->Lock(child->key,true);
+		unsigned long key = calculateHashKey(keyPtr);
+		child->next = m_table[key]; //insert at beginning for speed
+		m_table[key] = childLoc;
+		g_jsonMem->Unlock(child->key);
+		g_jsonMem->Unlock(childLoc);
+		g_jsonMem->Unlock(m_tableLoc);
+		m_keycount++;
+		return 0;
+	}
 public:
 	unsigned long m_tablesize;
+	unsigned long m_keycount;
 	i64 m_tableLoc;
 	//jsonkeypair** m_table;
 	i64 operator [] (const char *p_key) {
@@ -198,44 +215,35 @@ public:
 		}
 		m_tableLoc = 0;
 		m_tablesize = 0;
+		m_keycount = 0;
 	}
 
 	i64 Find(const char *key);
 	long Delete(const char *key);
 	long Replace(const char *key, i64 p_newval);
-	unsigned long NumKeys(i64 p_firstChild) {
-		unsigned count = 0;
-		i64 next = p_firstChild;
-		while(next){
-			jsonkeypair* nextPtr = (jsonkeypair*)g_jsonMem->Lock(next);
-			i64 nxt = nextPtr->next;
-			g_jsonMem->Unlock(next);
-			count++;
-			next = nxt;;
-		}
-		return count;
-	}
-	unsigned long NumKeys() {
-		unsigned long i,count=0;
-		i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc);
-		for (i = 0; i < m_tablesize; i++) {
-			count += NumKeys(m_table[i]);
-		}
-		g_jsonMem->Unlock(m_tableLoc);
-		return count;
-	}
-
-	long addChild(i64 childLoc) {
-		jsonkeypair* child = (jsonkeypair*)g_jsonMem->Lock(childLoc);
-		i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc);
-		char *keyPtr = (char*)g_jsonMem->Lock(child->key);
-		unsigned long key = calculateHashKey(keyPtr);
-		child->next = m_table[key]; //insert at beginning for speed
-		m_table[key] = childLoc;
-		g_jsonMem->Unlock(child->key);
-		g_jsonMem->Unlock(childLoc);
-		g_jsonMem->Unlock(m_tableLoc);
-		return 0;
+	// unsigned long NumKeys(i64 p_firstChild) {
+	// 	unsigned count = 0;
+	// 	i64 next = p_firstChild;
+	// 	while(next){
+	// 		jsonkeypair* nextPtr = (jsonkeypair*)g_jsonMem->Lock(next,true);
+	// 		i64 nxt = nextPtr->next;
+	// 		g_jsonMem->Unlock(next);
+	// 		count++;
+	// 		next = nxt;;
+	// 	}
+	// 	return count;
+	// }
+	// unsigned long NumKeys() {
+	// 	unsigned long i,count=0;
+	// 	i64 *m_table = (i64*)g_jsonMem->Lock(m_tableLoc);
+	// 	for (i = 0; i < m_tablesize; i++) {
+	// 		count += NumKeys(m_table[i]);
+	// 	}
+	// 	g_jsonMem->Unlock(m_tableLoc);
+	// 	return count;
+	// }
+	unsigned long NumKeys(){
+		return m_keycount;
 	}
 
 	i64 AppendText(const char *key, const char *val);
@@ -249,13 +257,15 @@ public:
 	i64 AppendBoolean(const char *key, bool p_b);
 	i64 AppendNull(const char *key);
 	i64 AppendUndefined(const char *key);
+
+	static long Type();
+	static void Delete(i64);
+	static void Free(_jsonobj*);
+	static long Create(i64*);
+	static long Load(i64, stream*,char);
+	//load from stream before '{'
+	static long Load(i64, stream*);
 };
-long jsonobj_Type();
-void jsonobj_Delete(i64);
-long jsonobj_Create(i64*);
-long jsonobj_Load(i64, stream*,char);
-//load from stream before '{'
-long jsonobj_Load(i64, stream*);
 
 class jsonarray : public _jsonobj {
 public:
@@ -310,8 +320,8 @@ public:
 		Resize(0);
 	}
 
-	void Delete(unsigned long index);
-	void Replace(unsigned long index, i64 p_newval);
+	void DeleteIdx(unsigned long index);
+	void ReplaceIdx(unsigned long index, i64 p_newval);
 
 	i64 AppendText(const char *val);
 	i64 AppendText(i64 txtLoc);
@@ -324,13 +334,15 @@ public:
 	i64 AppendBoolean(bool p_b);
 	i64 AppendNull();
 	i64 AppendUndefined();
+
+	static long Type();
+	static void Delete(i64);
+	static void Free(_jsonobj*);
+	static long Create(i64*);
+	static long Load(i64, stream*, char);
+	//load from stream before '['
+	static long Load(i64, stream*);
 };
-long jsonarray_Type();
-void jsonarray_Delete(i64);
-long jsonarray_Create(i64*);
-long jsonarray_Load(i64, stream*, char);
-//load from stream before '['
-long jsonarray_Load(i64, stream*);
 
 class jsonstring : public _jsonobj {
 public:
@@ -375,37 +387,41 @@ public:
 		return ret;
 	}
 
+	static long Type();
+	static void Delete(i64);
+	static void Free(_jsonobj*);
+	static long Create(i64*);
+	static long Load(i64, stream*, char);
 };
-long jsonstring_Type();
-void jsonstring_Delete(i64);
-long jsonstring_Create(i64*);
-long jsonstring_Load(i64, stream*, char);
 
 class jsonnumber : public _jsonobj {
 public:
 	double num;
+	static long Type();
+	static void Delete(i64);
+	static void Free(_jsonobj*);
+	static long Create(i64*);
+	static long Load(i64, stream*, char);
 };
-long jsonnumber_Type();
-void jsonnumber_Delete(i64);
-long jsonnumber_Create(i64*);
-long jsonnumber_Load(i64, stream*, char);
 
 class jsonboolean : public _jsonobj {
 public:
 	bool b;
+	static long Type();
+	static void Delete(i64);
+	static long Create(i64*);
+	static void Free(_jsonobj*);
+	static long Load(i64, stream*, char);
 };
-long jsonboolean_Type();
-void jsonboolean_Delete(i64);
-long jsonboolean_Create(i64*);
-long jsonboolean_Load(i64, stream*, char);
 
 class jsonnull : public _jsonobj {
 public:
+	static long Type();
+	static void Delete(i64);
+	static long Create(i64*);
+	static void Free(_jsonobj*);
+	static long Load(i64, stream*, char);
 };
-long jsonnull_Type();
-void jsonnull_Delete(i64);
-long jsonnull_Create(i64*);
-long jsonnull_Load(i64, stream*, char);
 
 class jsonundefined : public _jsonobj {
 public:

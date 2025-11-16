@@ -1,23 +1,28 @@
 #include "virtual_mem.h"
 
-void vmem::freeCache(vcache *c) {
+long vmem::freeCache(vcache *c) {
+	long err = 0;
 	if (c->m_flags&VMEM_CACHEFLAG_DIRTY) {
-		saveFileBlock(c->m_mem, c->m_loc);
+		err =saveFileBlock(c->m_mem, c->m_loc);
 	}
 	m_cacheSize -= VMEM_FILEBLOCKSIZE + sizeof(vcache);
 	delete [] c->m_mem;
 	delete c;
+	return err;
 }
-void vmem::flushCache(vcache *c) {
+long vmem::flushCache(vcache *c) {
+	long err =0;
 	if (c->m_flags&VMEM_CACHEFLAG_DIRTY) {
-		saveFileBlock(c->m_mem, c->m_loc);
+		err = saveFileBlock(c->m_mem, c->m_loc);
 		c->m_flags &= ~VMEM_CACHEFLAG_DIRTY;
 	}
+	return err;
 }
 
-void vmem::removeLowestHitCache() {
+long vmem::removeLowestHitCache() {
 	long i;
 	vcache **lowest = 0;
+	long err=0;
 	for (i = 0; i < VMEM_CACHETABLESIZE; i++) {
 		vcache *itr = m_cache[i];
 		vcache *prevItr = 0;
@@ -38,9 +43,11 @@ void vmem::removeLowestHitCache() {
 	if (lowest) {
 		vcache *c = *lowest;
 		*lowest = (*lowest)->m_next;
-		freeCache( c);
+		err = freeCache( c);
 	}
 	//else cahce is all in use
+
+	return err;
 }
 
 

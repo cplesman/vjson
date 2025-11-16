@@ -5,13 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "test",
-            "program": "${workspaceFolder}/test/test.js",
+            "type": "lldb",
             "request": "launch",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "node"
+            "name": "Debug Node Nativ Test",
+            "preLaunchTask": "npm: build:dev",
+            // "program": "c:\\Program Files\\nodejs\\node.exe",
+            // "args": [
+            //     "d:\\programming\\vjson\\test\\test.js"
+            // ]
+            "program": "/home/cplesman/.nvm/versions/node/v22.21.0/bin/node",
+            "args": [
+                "/mnt/d/programming/vjson/test/test.js"
+            ]
         },
         {
             "name": "C++ Launch VJSON test",
