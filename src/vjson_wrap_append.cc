@@ -11,10 +11,10 @@ i64 createChild(napi_env env, JsonMM *mem, napi_value elementValue){
             CHECK(napi_get_value_string_utf8(env, elementValue, nullptr, 0, &valueStrSize) == napi_ok);
             i64 valueStr = 0;
             if(valueStrSize) {
-                valueStr = mem->Alloc(valueStrSize);
+                valueStr = mem->Alloc(valueStrSize+1);
                 if(!valueStr) return JSON_ERROR_OUTOFMEMORY;
                 char *valueStrPtr = (char*)mem->Lock(valueStr);
-                CHECK(napi_get_value_string_utf8(env, elementValue, valueStrPtr, valueStrSize, &valueStrSize) == napi_ok);
+                CHECK(napi_get_value_string_utf8(env, elementValue, valueStrPtr, valueStrSize+1, nullptr) == napi_ok);
                 mem->Unlock(valueStr);
             }
             //create jsonstring object
@@ -137,7 +137,7 @@ napi_value vjson_wrap::append_obj(napi_env env, napi_callback_info info){
     napi_value argv[4];
     JsonMM *mem; char key[256]; size_t keySize;
     //napi_valuetype expectedTypes[4] = { napi_object,napi_string,napi_string,napi_object };
-    size_t numArgs;
+    size_t numArgs=4;
     CHECK(napi_get_cb_info(env,info, &numArgs, argv, NULL,NULL/*((void**)&addon_data)*/) == napi_ok);
     bool argerr=false;
     if(numArgs>2) { //appendToArray(vjsonMM,keypath of parent, object to append)
@@ -236,7 +236,7 @@ napi_value vjson_wrap::update_obj(napi_env env, napi_callback_info info){
     napi_value js_obj;
     napi_value argv[4];
     JsonMM *mem; char key[256]; size_t keySize;
-    size_t numArgs;
+    size_t numArgs=4;
     CHECK(napi_get_cb_info(env,info, &numArgs, argv, NULL,NULL/*((void**)&addon_data)*/) == napi_ok);
     bool argerr=false;
     napi_valuetype argType; 
@@ -330,11 +330,11 @@ napi_value vjson_wrap::delete_obj(napi_env env, napi_callback_info info){
     napi_value js_obj;
     napi_value argv[4];
     JsonMM *mem; char key[256]; size_t keySize;
-    size_t numArgs;
+    size_t numArgs=4;
     CHECK(napi_get_cb_info(env,info, &numArgs, argv, NULL,NULL/*((void**)&addon_data)*/) == napi_ok);
     bool argerr=false;
     napi_valuetype argType; 
-    if(numArgs==3) { //appendToArray(vjsonMM,keypath of parent, object to append)
+    if(numArgs==3) { //appendToArray(vjsonMM,keypath of parent, key of object to delete)
         napi_typeof(env, argv[0], &argType); if(argType!=napi_object) {argerr=true;}
         napi_typeof(env, argv[1], &argType); if(argType!=napi_string) {argerr=true;}
         napi_typeof(env, argv[2], &argType); if(argType!=napi_string || argType!=napi_number) {argerr=true;}

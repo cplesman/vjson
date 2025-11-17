@@ -2,24 +2,24 @@
 
 const char *g_emptyString = "";
 
-napi_value read_obj(napi_env env, i64 objLoc){
+napi_value read_obj(napi_env env, i64 objLoc, long depth=1){
     napi_value js_obj;
     _jsonobj* objPtr = (_jsonobj*)g_jsonMem->Lock(objLoc,true);
     long type = jsonobj_ftables[objPtr->m_ftable]->Type();
     switch(type){
         case JSON_ARRAY:
             napi_create_array(env, &js_obj); //assume no errors
-            if(((jsonarray*)objPtr)->m_dataLoc){
+            if(((jsonarray*)objPtr)->m_dataLoc && depth>0){
                 i64*data = (i64*)g_jsonMem->Lock(((jsonarray*)objPtr)->m_dataLoc,true);
                 for(unsigned i=0;i<((jsonarray*)objPtr)->m_size;i++){
-                    napi_set_element(env, js_obj,i,read_obj(env,data[i]));
+                    napi_set_element(env, js_obj,i,read_obj(env,data[i],depth-1));
                 }
                 g_jsonMem->Unlock(((jsonarray*)objPtr)->m_dataLoc);
             }
             break;
         case JSON_OBJ:
             napi_create_object(env,&js_obj);
-            if(((jsonobj*)objPtr)->m_tableLoc){
+            if(((jsonobj*)objPtr)->m_tableLoc && depth>0){
                 i64 *table = (i64*)g_jsonMem->Lock(((jsonobj*)objPtr)->m_tableLoc,true);
                 unsigned long i;
                 for (i = 0; i < ((jsonobj*)objPtr)->m_tablesize; i++) {
@@ -28,7 +28,7 @@ napi_value read_obj(napi_env env, i64 objLoc){
                         jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr,true);
                         i64 next = itrPtr->next;
                         char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key,true);
-                        napi_set_named_property(env,js_obj, keyPtr, read_obj(env,itrPtr->val));                        
+                        napi_set_named_property(env,js_obj, keyPtr, read_obj(env,itrPtr->val,depth-1));                        
                         g_jsonMem->Unlock(itrPtr->key);
                         g_jsonMem->Unlock(itr);
                         itr = next;

@@ -16,7 +16,8 @@
             "program": "/home/cplesman/.nvm/versions/node/v22.21.0/bin/node",
             "args": [
                 "/mnt/d/programming/vjson/test/test.js"
-            ]
+            ],
+            "cwd":"${workspaceFolder}/test"
         },
         {
             "name": "C++ Launch VJSON test",
@@ -27,6 +28,13 @@
             "environment": [{ "name": "config", "value": "Debug" }],
             "stopAtEntry": false,
             "preLaunchTask": "C/C++: g++.exe build test VJSON"
+        },
+        {
+            "type":"node",
+            "request":"launch",
+            "name":"debug node test",
+            "cwd":"${workspaceFolder}/test",
+            "args": ["test.js"]
         }
 
     ]

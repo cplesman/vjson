@@ -148,12 +148,12 @@ int main(){
 
     i64 jsonobj_root = ((JsonMM*)g_jsonMem)->m_globalObjLoc;
 	if( jsonobj_root==0){
-		int err = jsonobj_Create(&jsonobj_root);
+		int err = jsonobj::Create(&jsonobj_root);
 		if(err<0){
 			printf("Failed to create json object\n");
 			return -1;
 		}
-		err = jsonobj_Load(jsonobj_root, &ts);
+		err = jsonobj::Load(jsonobj_root, &ts);
 		if(err<0) printf("failed to load\r\n");
 		((JsonMM*)g_jsonMem)->m_globalObjLoc = jsonobj_root;
 	}

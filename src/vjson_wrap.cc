@@ -129,9 +129,11 @@ i64 GetObjectFromKeyPath(JsonMM *mem, char *keyPath,unsigned long keyPathLen){
     //keyPath should be atleast 1024 bytes in length
     unsigned long i=0; unsigned long pi=0;
     while(pi<keyPathLen&&keyPath[pi]=='/') pi++;
-    for(;pi<keyPathLen;pi++){
-        if(!keyPath[pi] || keyPath[pi]=='/'){
-            if(!i) break; //reached end
+    while(pi<keyPathLen){
+        key[i] = keyPath[pi];
+        i++; pi++;
+        if(pi==keyPathLen || !keyPath[pi] || keyPath[pi]=='/'){
+            //if(!i) break; //reached end
             key[i] = 0;
             if(curType==JSON_ARRAY&& (key[0]<'0'||key[0]>'9')) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;} //expecting integer index
             i64 nexti = curType==JSON_ARRAY ? ((*((jsonarray*)obj))[(atoi(key))]): obj->Find(key);
@@ -141,8 +143,6 @@ i64 GetObjectFromKeyPath(JsonMM *mem, char *keyPath,unsigned long keyPathLen){
             if(curType!=JSON_ARRAY&&curType!=JSON_OBJ) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;}
             curObjLoc = nexti; i=0; continue;
         }
-        key[i] = keyPath[pi];
-        i++;
     }
     mem->Unlock(curObjLoc);
     return curObjLoc;
