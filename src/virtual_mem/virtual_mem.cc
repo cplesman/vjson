@@ -113,6 +113,34 @@ long vmem::destroy() {
 	return 0;
 }
 
+long vmem::Flush() {
+	if (!isOpen) {
+		return 0;
+	}
+	vcache *genBlock;
+	long err = readFileBlock(&genBlock, 0); if(err<0) return err;
+
+	i64 size = WriteGenBlock(genBlock->m_mem);
+	genBlock->m_flags |= VMEM_CACHEFLAG_DIRTY;
+	if (size < 0) {
+		return (long)size;
+	}
+	*((i64*)((char*)genBlock->m_mem+size)) = m_start;
+	*((i64*)((char*)genBlock->m_mem+size+sizeof(i64))) = m_size;
+	//memcpy(genBlock->m_mem+ size, &m_start, (i64)sizeof(m_start) + sizeof(m_size));
+
+	int i;
+	for (i = 0; i < VMEM_CACHETABLESIZE; i++) {
+		vcache *citr = m_cache[i];
+		while (citr) {
+			long err = flushCache(citr); if(err<0) return err;
+			citr = citr->m_next;
+		}
+	}
+	return 0;
+}
+
+
 i64 vmem::Alloc(i64 p_size) {
 	i64 loc;
 	loc = allocBlock(p_size);

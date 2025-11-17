@@ -60,6 +60,9 @@ napi_value vjson_wrap::init(napi_env env, napi_callback_info info){ //allocate a
         napi_get_null(env,&js_obj);
         return js_obj;
     }
+
+    g_jsonMem->Flush();
+    
     CHECK(napi_create_object(env, &js_obj)==napi_ok);
     CHECK(napi_wrap(env,js_obj,vjsonMM,vjson_wrap::freeMem,NULL, NULL) == napi_ok);
     return js_obj;

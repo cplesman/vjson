@@ -59,17 +59,7 @@ public:
 	long Init();
 	long Close();
 
-	long Flush() {
-		int i;
-		for (i = 0; i < VMEM_CACHETABLESIZE; i++) {
-			vcache *citr = m_cache[i];
-			while (citr) {
-				long err = flushCache(citr); if(err<0) return err;
-				citr = citr->m_next;
-			}
-		}
-		return 0;
-	}
+	long Flush();
 
 	i64 Alloc(i64 p_size);
 	long Free(i64 p_loc);

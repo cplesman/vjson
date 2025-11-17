@@ -19,6 +19,7 @@ long vmem::flushCache(vcache *c) {
 	return err;
 }
 
+
 long vmem::removeLowestHitCache() {
 	long i;
 	vcache **lowest = 0;

@@ -222,6 +222,8 @@ napi_value vjson_wrap::append_obj(napi_env env, napi_callback_info info){
         napi_throw_error(env, "-10", "failed to add new object");
         napi_get_null(env, &js_obj); return js_obj;
     }
+
+    g_jsonMem->Flush();
     
     if(type==JSON_OBJ){
         CHECK(napi_create_string_utf8(env, key, keySize, &js_obj) == napi_ok);
@@ -320,6 +322,8 @@ napi_value vjson_wrap::update_obj(napi_env env, napi_callback_info info){
 
     mem->Unlock(parentObjLoc);
     
+    g_jsonMem->Flush();
+    
     napi_get_boolean(env,true,&js_obj);
     return js_obj;
 }
@@ -400,6 +404,8 @@ napi_value vjson_wrap::delete_obj(napi_env env, napi_callback_info info){
         ((jsonobj*)parentObjPtr)->Delete(key);
     }
     mem->Unlock(parentObjLoc);
+    
+    g_jsonMem->Flush();
     
     napi_get_boolean(env,true,&js_obj);
     return js_obj;
