@@ -12,6 +12,11 @@ class vjson {
         delete this.db;
         this.db = null;
     }
+
+    Flush(){
+        addon.flush(this.db);
+    }
+
     Read(obj_path){
         return addon.read(this.db, obj_path);
     }

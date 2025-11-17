@@ -103,7 +103,8 @@
                 e.preventDefault();
                 let pathname = window.location.pathname;
                 let search = window.location.search;
-                window.location.assign(pathname+'/'+child+search);
+                let lastCh = pathname.length>0 ? pathname[pathname.length-1] : "\0";
+                window.location.assign(pathname+(lastCh!='/'?('/'+child):child)+search);
             }
         </script>
     </body>

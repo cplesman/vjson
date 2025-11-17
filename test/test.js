@@ -22,14 +22,14 @@ if(root.testObj2==null){
     let key = MemManager.Append("/", "testObj2", root.testObj2);
     console.log("added",key);
 }
-// if(root.testObj3==null){
-//     root.testObj3 = {
-//         "text":"test text 5",
-//         "numkey":8765.42123
-//     }
-//     let key = MemManager.Append("/", "testObj3", root.testObj3);
-//     console.log("added",key);
-// }
+if(root.testObj3==null){
+    root.testObj3 = {
+        "text":"test text 5",
+        "numkey":8765.42123
+    }
+    let key = MemManager.Append("/", "testObj3", root.testObj3);
+    console.log("added",key);
+}
 
 let root2 = MemManager.Read( "/");
 console.log(root2);
@@ -61,4 +61,9 @@ app.use(express.static("public"));
 app.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
 });
+
+MemManager.Flush();
+setInterval(()=>{
+    MemManager.Flush(); 
+},1000*60) //real world should be every 4+ hours
 
