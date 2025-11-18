@@ -9,21 +9,22 @@
       <div class="w3-container">
         <h2><%= keyname %></h2>
 
-        <form action="/post" method="post">
+        <form id="updateform" action="/post" method="post">
             <div class="w3-bar">
                 <button id="navigate_up_objectbutton" disabled class="w3-large w3-button" onclick="onnavigatetoparent(event)">Up <i class="material-icons">arrow_upward</i></button>
                 <button id="navigate_home_objectbutton" disabled class="w3-large w3-button" onclick="event.preventDefault();window.location.assign('/get/'+window.location.search)">Root <i class="material-icons">home</i></button>
                 <button id="update_object_button" class="w3-large w3-button" type="submit">Update <i class="material-icons">upgrade</i></button>
             </div>
             <hr/>
-            <input id="hidden_objectname" class="w3-input w3-hide" type="text" name="objpath" value=""/>
+            <input id="hidden_objectname" class="w3-input w3-hide" type="text" name="objPath" value=""/>
+            <input id="hidden_objecttype" class="w3-input w3-hide" type="text" name="objIsArray" value="<%= Array.isArray(obj) %>"/>
             <% let keys = Object.keys(obj) %>
             <% for(let i=0;i<keys.length;i++) { %>
                 <% let k = keys[i]; %>
                 <div class="w3-row-padding">
                     <div class="w3-quarter">
-                        <label>Key</label>
-                        <input class="w3-input w3-border" type="text" name="<%= k %>_key" placeholder="Key" value="<%= k %>"/>
+                        <label>Key</label> <!-- note there is no name attribute on key we can get key from name of type input (remove _type from name) -->
+                        <input class="w3-input w3-border" type="text" placeholder="Key" value="<%= k %>"/>
                     </div>
                     <div class="w3-quarter">
                         <label>Type</label>
@@ -84,6 +85,17 @@
                 }
                 let objinput = document.getElementById('hidden_objectname');
                 objinput.value = window.location.pathname.slice(4);
+                let updateform = document.getElementById('updateform');
+                updateform.addEventListener('submit', (event)=>{
+                    let updatebtn = document.getElementById('update_object_button');
+                    updatebtn.disabled= true;
+                    let formData = new FormData(updateform);
+                    fetch("/post", {
+                        method:"POST",
+                        body: formData
+                    }).then( console.log );
+                    event.preventDefault();
+                });
             }
             function onaddobjectbutton(e){
                 e.preventDefault();

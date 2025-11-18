@@ -13,9 +13,9 @@
             // "args": [
             //     "d:\\programming\\vjson\\test\\test.js"
             // ]
-            "program": "/home/cplesman/.nvm/versions/node/v22.21.0/bin/node",
+            "program": "/home/cplesman/.nvm/versions/node/v24.11.0/bin/node",
             "args": [
-                "/mnt/d/programming/vjson/test/test.js"
+                "/mnt/c/programming/vjson/test/test.js"
             ],
             "cwd":"${workspaceFolder}/test"
         },

@@ -52,7 +52,24 @@ app.get('/get/', objectView);
 
 app.post('/post', (req,res,next)=>{
     console.log(req.body);
-    res.redirect('/get'+req.body.objpath);
+    try{
+        const {objPath,objIsArray} = req.body;
+        let keys = Object.keys(req.body);
+        if(typeof(objIsArray)=='undefined' || typeof(objPath)=='undefined'){
+            throw new Error("invalid form data");
+        }
+        for(let i=0;i<keys.length;i++){
+            let k = keys[i];
+            let lastIdx_ = keys[i].lastIndexOf("_");
+            let field = keys[i].slice(lastIdx_+1);
+            
+        }
+    }
+    catch(e){
+
+    }
+    res.status(200).send("successfully updated");
+    //res.redirect('/get'+req.body.objpath);
 })
 
 app.use(express.static("public"));
