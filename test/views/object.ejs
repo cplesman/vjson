@@ -83,18 +83,18 @@
                     btn = document.getElementById('navigate_up_objectbutton');
                     btn.disabled=false;
                 }
-                let objinput = document.getElementById('hidden_objectname');
-                objinput.value = window.location.pathname.slice(4);
                 let updateform = document.getElementById('updateform');
-                updateform.addEventListener('submit', (event)=>{
+                updateform.addEventListener('formdata', (event)=>{
+                    event.preventDefault();
                     let updatebtn = document.getElementById('update_object_button');
                     updatebtn.disabled= true;
-                    let formData = new FormData(updateform);
+                    let formData = new FormData();
+                    formData.append("objpath", window.location.pathname.slice(4)/*take off '/get'*/);
+                    formData.append("objIsArray", <%= Array.isArray(obj) %>);
                     fetch("/post", {
                         method:"POST",
                         body: formData
                     }).then( console.log );
-                    event.preventDefault();
                 });
             }
             function onaddobjectbutton(e){
