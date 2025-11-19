@@ -9,7 +9,7 @@
       <div class="w3-container">
         <h2><%= keyname %></h2>
 
-        <form id="updateform" action="/post" method="post">
+        <form id="updateform" >
             <div class="w3-bar">
                 <button id="navigate_up_objectbutton" disabled class="w3-large w3-button" onclick="onnavigatetoparent(event)">Up <i class="material-icons">arrow_upward</i></button>
                 <button id="navigate_home_objectbutton" disabled class="w3-large w3-button" onclick="event.preventDefault();window.location.assign('/get/'+window.location.search)">Root <i class="material-icons">home</i></button>
@@ -24,28 +24,38 @@
                 <div class="w3-row-padding">
                     <div class="w3-quarter">
                         <label>Key</label> <!-- note there is no name attribute on key we can get key from name of type input (remove _type from name) -->
-                        <input class="w3-input w3-border" type="text" placeholder="Key" value="<%= k %>"/>
+                        <input class="w3-input w3-border" type="text" id="key_<%= k %>" placeholder="Key" readonly value="<%= k %>"/>
                     </div>
                     <div class="w3-quarter">
                         <label>Type</label>
                         <% let type=typeof(obj[k]); %>
-                        <input class="w3-input w3-border" type="text" name="<%= k %>_type" placeholder="Type" value="<%= type %>"/>
+                        <% if(Array.isArray(obj[k])) {type='array';} %>
+                        <select class="w3-select w3-border" value="<%= type %>" name="<%= k+'_type' %>" onchange="ontypechanged(this,'<%= k %>')">
+                            <option value="null" <%= type=='null'?'selected':'' %>>null</option>
+                            <option value="undefined"<%= type=='undefined'?'selected':'' %>>undefined</option>
+                            <option value="string"<%= type=='string'?'selected':'' %>>string</option>
+                            <option value="number"<%= type=='number'?'selected':'' %>>number</option>
+                            <option value="boolean"<%= type=='boolean'?'selected':'' %>>boolean</option>
+                            <option value="object"<%= type=='object'?'selected':'' %>>object</option>
+                            <option value="array"<%= type=='array'?'selected':'' %>>array</option>
+                        </select>
                     </div>
-                    <div class="w3-half">
-                        <% if(type=="object") { %>
-                            <button class="w3-button" onclick="onnavigatetochild(event,'<%= k %>')">
-                                <img src="/icons/jumpto_element.svg" alt="open element" height="38" width="38" />Value
-                            </button>
-                        <% } else { %>
-                            <label>Value</label>
-                        <% } %>
-                        <% if(type=="string") { %>
-                            <input class="w3-input w3-border" name="<%= k %>_value" type="text" placeholder="value" value="<%= obj[k] %>"/>
-                        <% } else if(type=="number") { %>
-                            <input class="w3-input w3-border" name="<%= k %>_value" type="number" placeholder="1234.5678" value="<%= obj[k] %>"/>
-                        <% } else if(type=="boolean") { %>
-                            <input class="w3-input w3-border" name="<%= k %>_value" type="text" placeholder="true or false" value="<%= obj[k].toString() %>"/>
-                        <% } %>
+                    <div class="w3-quarter">
+                        <label>Value</label>
+                        <input class="w3-input w3-border" name="<%= k %>_value" type="text" placeholder="value"
+                        <% if(type=='object'||type=='array'){ %> disabled <% } %>
+                        value="<%= type=='object' ? '{}' : type=='array' ? '[]' : obj[k].toString() %>"/>
+                    </div>
+                    <div class="w3-quarter w3-bar" style="padding-top:11px;">
+                        <button class="w3-button" onclick="onnavigatetochild(event,'<%= k %>')" <% if(type!='object'&&type!='array'){ %> disabled <% } %>>
+                            <img src="/icons/jumpto_element.svg" alt="open element" height="33" width="33" />
+                        </button>
+                        <button class="w3-button" onclick="ondeletebutton(event,'<%= k %>')">
+                            <img src="/icons/delete.svg" alt="open element" height="33" width="33" />
+                        </button>
+                        <button class="w3-button" onclick="onreload(event,{key:'<%= k %>',type:'<%= type %>', value:'<%= JSON.stringify(obj[k]) %>'})">
+                            <img src="/icons/restart.svg" alt="open element" height="33" width="33" />
+                        </button>
                     </div>
                 </div>
             <% } %>
@@ -55,16 +65,29 @@
             <div class="w3-row-padding">
                 <h3>ADD ITEM</h3>
             </div>
+            <div id="additemerror" class="w3-panel w3-red w3-hide">
+                <h4>error</h4>
+            </div>
             <div class="w3-row-padding">
                 <div class="w3-quarter">
                     <label>Key</label>
-                    <input class="w3-input w3-border" type="text" placeholder="Key" value=""/>
+                    <input id='addkeyinput' class="w3-input w3-border" type="text" placeholder="Key" value=""/>
                 </div>
                 <div class="w3-quarter">
                     <label>Type</label>
-                    <input class="w3-input w3-border" type="text" placeholder="Type" value=""/>
+                    <select class="w3-select w3-border" id="addtypeinput" onchange="addtypechanged(this)" value="null">
+                        <option value="null" selected>null</option>
+                        <option value="undefined">undefined</option>
+                        <option value="string">string</option>
+                        <option value="number">number</option>
+                        <option value="boolean">boolean</option>
+                        <option value="object">object</option>
+                        <option value="array">array</option>
+                    </select>
                 </div>
-                <div class="w3-half" id="addvalue">
+                <div class="w3-quarter" id="addvalue">
+                    <label>Value</label>
+                    <input id='addvalueinput' class="w3-input w3-border" type="text" placeholder="Value" value=""/>
                 </div>
             </div>
             <div class="w3-row-padding">
@@ -83,25 +106,82 @@
                     btn = document.getElementById('navigate_up_objectbutton');
                     btn.disabled=false;
                 }
+                let objpathinput = document.getElementById('hidden_objectname'); objpathinput.value=window.location.pathname.slice(4);
                 let updateform = document.getElementById('updateform');
-                updateform.addEventListener('formdata', (event)=>{
+                let updatebtn = document.getElementById('update_object_button');
+                updateform.addEventListener('submit', (event)=>{
                     event.preventDefault();
-                    let updatebtn = document.getElementById('update_object_button');
                     updatebtn.disabled= true;
-                    let formData = new FormData();
-                    formData.append("objpath", window.location.pathname.slice(4)/*take off '/get'*/);
-                    formData.append("objIsArray", <%= Array.isArray(obj) %>);
+                    let formData = new FormData(updateform);
+                    // formData.append("objpath", window.location.pathname.slice(4)/*take off '/get'*/);
+                    // formData.append("objIsArray", );
                     fetch("/post", {
                         method:"POST",
                         body: formData
-                    }).then( console.log );
+                    }).then( (response)=>response.text().then( (txt)=>{
+                            console.log(txt);
+                            updatebtn.disabled=false;
+                        })
+                    );
                 });
             }
             function onaddobjectbutton(e){
                 e.preventDefault();
-            }
-            function onupdateobject(e){
-                e.submit();
+                let adderror = document.getElementById('additemerror'); adderror.classList.add("w3-hide");
+                let key = document.getElementById('addkeyinput').value;
+                let type = document.getElementById('addtypeinput').value;
+                if(!key||key.length==0||key.indexOf(' ')>=0){ 
+                    adderror.classList.remove("w3-hide");
+                    adderror.children[0].innerHTML = 'invalid key'
+                    return;
+                }
+                if(document.getElementById('key_'+key)){
+                    adderror.classList.remove("w3-hide");
+                    adderror.children[0].innerHTML = 'key is already used';
+                    return;
+                }
+                let addvalue = type=='object' ? '{}' : type=='array' ? '[]' : document.getElementById('addvalueinput').value;
+                let objhtml = `
+                    <div class="w3-row-padding">
+                        <div class="w3-quarter">
+                            <label>Key</label>
+                            <input class="w3-input w3-border" id="key_${key}" value="${key}" readonly type="text">
+                        </div>
+                        <div class="w3-quarter">
+                            <label>Type</label>
+                            <select class="w3-select w3-border" value="${key}" name="${key}_type" onchange="ontypechanged(this,'${key}')">
+                                <option ${type=='null'?'selected':''} value="null">null</option>
+                                <option ${type=='undefined'?'selected':''} value="undefined">undefined</option>
+                                <option ${type=='string'?'selected':''} value="string">string</option>
+                                <option ${type=='number'?'selected':''} value="number">number</option>
+                                <option ${type=='boolean'?'selected':''} value="boolean">boolean</option>
+                                <option ${type=='object'?'selected':''} value="object">object</option>
+                                <option ${type=='array'?'selected':''} value="array">array</option>
+                            </select>
+                        </div>
+                        <div class="w3-quarter">
+                            <label>Value</label>
+                            <input class="w3-input w3-border" name="${key}_value" value="${addvalue}" type="text" ${(type=='object'||type=='array')?'disabled':''}>
+                        </div>
+                        <div class="w3-quarter w3-bar" style="padding-top:11px;">
+                            <button class="w3-button" onclick="onnavigatetochild(event,'${key}')" ${(type!='object'&&type!='array')?'disabled':''}>
+                                <img src="/icons/jumpto_element.svg" alt="open element" height="33" width="33" />
+                            </button>
+                            <button class="w3-button" onclick="ondeletebutton(event,'${key}')">
+                                <img src="/icons/delete.svg" alt="open element" height="33" width="33" />
+                            </button>
+                            <button class="w3-button" onclick="onreload(event,{key:'${key}',type:'${type}', value:'${addvalue}'})">
+                                <img src="/icons/restart.svg" alt="open element" height="33" width="33" />
+                            </button>
+                        </div>
+                    </div>
+                `;
+                // let objhtml = document.createElement('div'); objhtml.setAttribute('class', 'w3-row-padding');
+                // let keydiv = document.createElement('div'); keydiv.setAttribute('class', 'w3-quarter');
+                // let keylabel = document.createElement('label'); keylabel.innerText = "Key";
+                // let keyinput = document.createElement('input'); keyinput.setAttribute('class','w3-input w3-border')
+                let hidden_objecttype_ele = document.getElementById("hidden_objecttype");
+                hidden_objecttype_ele.insertAdjacentHTML('afterend', objhtml);
             }
             function onnavigatetoparent(e){
                 e.preventDefault();
@@ -117,6 +197,50 @@
                 let search = window.location.search;
                 let lastCh = pathname.length>0 ? pathname[pathname.length-1] : "\0";
                 window.location.assign(pathname+(lastCh!='/'?('/'+child):child)+search);
+            }
+            function addtypechanged(ele){
+                let val = ele.value;
+                let addvalueinput = document.getElementById('addvalueinput');
+                if(val=='object'||val=='array'){
+                    addvalueinput.value=val=='object'?'{}':'[]';
+                    addvalueinput.disabled=true;
+                } else {
+                    addvalueinput.disabled=false;
+                }
+            }
+            function ontypechanged(e,key){
+                let type = e.value;
+                let keyele = document.getElementById('key_'+key);
+                let rowdiv = keyele.parentElement.parentElement;
+                let valueinput = rowdiv.querySelector('input[name="'+key+'_value"]');
+                // save previous value
+                if(type=='object'||type=='array'){
+                    valueinput.value=type=='object'?'{}':'[]';
+                    valueinput.disabled=true;
+                } else {
+                    valueinput.disabled=false;
+                    valueinput.value='';
+                }
+            }
+            function ondeletebutton(e,key){
+                e.preventDefault();
+                let keyele = document.getElementById('key_'+key);
+                let rowdiv = keyele.parentElement.parentElement;
+                rowdiv.remove();
+            }
+            function onreload(e,info){
+                e.preventDefault();
+                let keyele = document.getElementById('key_'+info.key);
+                let rowdiv = keyele.parentElement.parentElement;
+                let typeselect = rowdiv.querySelector('select');
+                let valueinput = rowdiv.querySelector('input[name="'+info.key+'_value"]');
+                typeselect.value = info.type;
+                valueinput.value = info.value;
+                if(info.type=='object'||info.type=='array'){
+                    valueinput.disabled=true;
+                } else {
+                    valueinput.disabled=false;
+                }
             }
         </script>
     </body>

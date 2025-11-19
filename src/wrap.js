@@ -20,8 +20,8 @@ class vjson {
     Read(obj_path){
         return addon.read(this.db, obj_path);
     }
-    Update(obj_path, obj_id){
-        return addon.update(this.db, obj_path, obj_id);
+    Update(obj_path, obj_id, obj){
+        return addon.update(this.db, obj_path, obj_id, obj);
     }
 
     Append(obj_path, obj){ //append to an array or obj

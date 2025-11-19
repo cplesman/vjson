@@ -14,6 +14,7 @@
         "${workspaceFolder}/**",
         "~/AppData/Local/node-gyp/Cache/20.15.1/include/node",
         "/mnt/c/users/cples/AppData/Local/node-gyp/Cache/24.11.0/include/node",
+        "/mnt/c/users/cples/AppData/Local/node-gyp/Cache/20.15.1/include/node",
         "/home/cplesman/.nvm/versions/node/v24.11.0/bin/node-gyp"
       ],
       "defines": [],

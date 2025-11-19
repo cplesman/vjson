@@ -1,5 +1,6 @@
 let MemManager = require("./db.js");
-let path =require("path");
+let multer = require('multer');
+let upload = multer();
 
 console.log("free bytes",MemManager.CalculateFree());
 
@@ -43,14 +44,18 @@ const express = require('express');
 const app = express();
 const port = 3000;
 
-app.use(express.json());
 app.use(express.urlencoded());
+app.use(express.json());
+
+app.get("/", (res,req)=>{
+    req.redirect('/get/');
+})
 
 let objectView = require('./views/object.js');
 app.get('/get/*getObj', objectView );
 app.get('/get/', objectView);
 
-app.post('/post', (req,res,next)=>{
+app.post('/post', upload.none(), (req,res,next)=>{
     console.log(req.body);
     try{
         const {objPath,objIsArray} = req.body;
@@ -58,17 +63,42 @@ app.post('/post', (req,res,next)=>{
         if(typeof(objIsArray)=='undefined' || typeof(objPath)=='undefined'){
             throw new Error("invalid form data");
         }
+        let obj = objIsArray=='true'?[]:{};
+        //todo: it would be better to parse keys on the client side and send a structured object
         for(let i=0;i<keys.length;i++){
             let k = keys[i];
             let lastIdx_ = keys[i].lastIndexOf("_");
+            if(lastIdx_<0) continue;
             let field = keys[i].slice(lastIdx_+1);
-            
+            let keyname = keys[i].slice(0,lastIdx_);
+            if(field=='type'){ //ignore value fields, they will be processed together with type fields
+                let type = req.body[keyname+'_type']; if(typeof(type)!='string') throw new Error("missing type for key "+keyname);
+                let value = req.body[keyname+'_value']; 
+                if(type!='object' && type!='array'){
+                    if(typeof(value)!='string') throw new Error("missing value for key "+keyname);
+                }
+                switch(type){
+                    case 'null': obj[keyname]=null; break;
+                    case 'undefined': obj[keyname]=undefined; break;
+                    case 'string': obj[keyname]=value; break;
+                    case 'number': obj[keyname]=Number(value); break;
+                    case 'boolean': obj[keyname]=(value=='true'); break;
+                    case 'object': obj[keyname]={}; break;
+                    case 'array': obj[keyname]=[]; break;
+                    default: throw new Error("invalid type "+type+" for key "+keyname);
+                }
+                MemManager.Update(objPath, keyname, obj[keyname]);
+            }
+            else if(field!='value') {
+                throw new Error("invalid form data field "+field);
+            }
+
         }
+        res.status(200).send("successfully updated");
     }
     catch(e){
-
+        res.status(400).send(e.message);
     }
-    res.status(200).send("successfully updated");
     //res.redirect('/get'+req.body.objpath);
 })
 

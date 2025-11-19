@@ -240,11 +240,12 @@ napi_value vjson_wrap::update_obj(napi_env env, napi_callback_info info){
     CHECK(napi_get_cb_info(env,info, &numArgs, argv, NULL,NULL/*((void**)&addon_data)*/) == napi_ok);
     bool argerr=false;
     napi_valuetype argType; 
-    if(numArgs==4) { //appendToArray(vjsonMM,keypath of parent, object to append)
+    if(numArgs==4) { //appendToArray(vjsonMM,keypath of parent, id/key, object to append)
         napi_typeof(env, argv[0], &argType); if(argType!=napi_object) {argerr=true;}
         napi_typeof(env, argv[1], &argType); if(argType!=napi_string) {argerr=true;}
-        napi_typeof(env, argv[2], &argType); if(argType!=napi_string||argType!=napi_number) {argerr=true;}
+        napi_typeof(env, argv[2], &argType); if(argType!=napi_string&&argType!=napi_number) {argerr=true;}
     }
+    else argerr = true;
     if (argerr) {
         napi_throw_error(env, "-2", "invalid arguments");
         napi_get_null(env, &js_obj); return js_obj;
@@ -311,13 +312,46 @@ napi_value vjson_wrap::update_obj(napi_env env, napi_callback_info info){
         napi_get_null(env, &js_obj); return js_obj;
     }
 
+    _jsonobj* newObjPtr = (_jsonobj*)mem->Lock(newObjLoc);
+    unsigned long newObjType = newObjPtr->m_ftable;
+    mem->Unlock(newObjLoc);
+
+    i64 oldObjLoc = 0;
+    if(type==JSON_ARRAY) {
+        oldObjLoc = ((jsonarray*)parentObjPtr)->operator[](index&0xffffffff);
+    }
+    else {
+        oldObjLoc = ((jsonobj*)parentObjPtr)->Find(key);
+    }
+
+    if(oldObjLoc !=0){
+        _jsonobj* oldObjPtr = (_jsonobj*)mem->Lock(oldObjLoc);
+        unsigned long oldObjType = oldObjPtr->m_ftable;
+        mem->Unlock(oldObjLoc);
+        if(oldObjType == newObjType && (oldObjType==JSON_OBJ || oldObjType==JSON_ARRAY)){
+            //dont replace complex objects
+            _jsonobj* objPtr = (_jsonobj*)mem->Lock(newObjLoc);
+            long t = objPtr->m_ftable;
+            mem->Unlock(newObjLoc);
+            jsonobj_ftables[t]->Delete(newObjLoc);
+
+            mem->Unlock(parentObjLoc);
+            napi_get_boolean(env,true,&js_obj);
+            return js_obj;
+        }
+    }
+
     if(type==JSON_ARRAY) {
         ((jsonarray*)parentObjPtr)->ReplaceIdx(index&0xffffffff,newObjLoc);
     }
     else {
-        ((jsonobj*)parentObjPtr)->Replace(key,newObjLoc);
+        if(oldObjLoc !=0){
+            ((jsonobj*)parentObjPtr)->Replace(key,newObjLoc);
+        }
+        else{
+            ((jsonobj*)parentObjPtr)->AppendObj(key,newObjLoc);
+        }
     }
-
     mem->Unlock(parentObjLoc);
     
     napi_get_boolean(env,true,&js_obj);
@@ -337,8 +371,8 @@ napi_value vjson_wrap::delete_obj(napi_env env, napi_callback_info info){
     if(numArgs==3) { //appendToArray(vjsonMM,keypath of parent, key of object to delete)
         napi_typeof(env, argv[0], &argType); if(argType!=napi_object) {argerr=true;}
         napi_typeof(env, argv[1], &argType); if(argType!=napi_string) {argerr=true;}
-        napi_typeof(env, argv[2], &argType); if(argType!=napi_string || argType!=napi_number) {argerr=true;}
-    }
+        napi_typeof(env, argv[2], &argType); if(argType!=napi_string && argType!=napi_number) {argerr=true;}
+    } else argerr = true;
     if (argerr) {
         napi_throw_error(env, "-2", "invalid arguments");
         napi_get_null(env, &js_obj); return js_obj;
