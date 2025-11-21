@@ -146,10 +146,6 @@ napi_value vjson_wrap::append_obj(napi_env env, napi_callback_info info){
         napi_typeof(env, argv[1], &argType); if(argType!=napi_string) {argerr=true;}
         if(numArgs==4) {napi_typeof(env, argv[2], &argType); if(argType!=napi_string) {argerr=true;}}
         else if(numArgs!=3) {argerr=true;}
-        if(!argerr){
-            napi_typeof(env, argv[numArgs-1], &argType);
-            if(argType!=napi_object) {argerr=true;}
-        }
     }
     else argerr=true;
     if (argerr) {

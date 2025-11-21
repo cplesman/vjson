@@ -139,10 +139,12 @@ i64 GetObjectFromKeyPath(JsonMM *mem, char *keyPath,unsigned long keyPathLen){
             if(curType==JSON_ARRAY&& (key[0]<'0'||key[0]>'9')) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;} //expecting integer index
             i64 nexti = curType==JSON_ARRAY ? ((*((jsonarray*)obj))[(atoi(key))]): obj->Find(key);
             if(!nexti || (pi<keyPathLen-1&&keyPath[pi+1]=='/'/*//*/)) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;}
-            jsonobj *obj = (jsonobj*)mem->Lock(curObjLoc);
+            mem->Unlock(curObjLoc);
+            curObjLoc = nexti; i=0;
+            obj = (jsonobj*)mem->Lock(curObjLoc);
             curType = jsonobj_ftables[obj->m_ftable]->Type();
             if(curType!=JSON_ARRAY&&curType!=JSON_OBJ) {mem->Unlock(curObjLoc); return JSON_ERROR_INVALIDDATA;}
-            curObjLoc = nexti; i=0; continue;
+            while(pi<keyPathLen&&keyPath[pi]=='/') pi++;
         }
     }
     mem->Unlock(curObjLoc);

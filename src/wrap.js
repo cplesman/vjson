@@ -24,15 +24,16 @@ class vjson {
         return addon.update(this.db, obj_path, obj_id, obj);
     }
 
-    Append(obj_path, obj){ //append to an array or obj
-        return addon.append(this.db, obj_path, obj);
-    }
     Append(obj_path, obj_id/*new unique id*/, obj){ //append to obj
+        if(obj==undefined){
+            obj = obj_id;
+            return addon.append(this.db, obj_path, obj);
+        }
         return addon.append(this.db, obj_path, obj_id, obj);
     }
 
     Delete(obj_path,obj_id){
-        return addon.Delete(this.db, obj_path, obj_id);
+        return addon.delete(this.db, obj_path, obj_id);
     }
 
     CalculateFree(){

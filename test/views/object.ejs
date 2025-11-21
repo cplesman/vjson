@@ -7,6 +7,7 @@
     <body onload="onbodyloaded()">
 
       <div class="w3-container">
+        <h4 class="w3-right" id="freememorydisplay">Free Memory: <%= freeMem %> bytes</h4>
         <h2><%= keyname %></h2>
 
         <form id="updateform" >
@@ -18,9 +19,9 @@
             <hr/>
             <input id="hidden_objectname" class="w3-input w3-hide" type="text" name="objPath" value=""/>
             <input id="hidden_objecttype" class="w3-input w3-hide" type="text" name="objIsArray" value="<%= Array.isArray(obj) %>"/>
-            <% let keys = Object.keys(obj) %>
+            <% let isA = Array.isArray(obj); let keys = isA ? obj : Object.keys(obj); %>
             <% for(let i=0;i<keys.length;i++) { %>
-                <% let k = keys[i]; %>
+                <% let k = isA ? i.toString() : keys[i]; %>
                 <div class="w3-row-padding">
                     <div class="w3-quarter">
                         <label>Key</label> <!-- note there is no name attribute on key we can get key from name of type input (remove _type from name) -->
@@ -71,7 +72,11 @@
             <div class="w3-row-padding">
                 <div class="w3-quarter">
                     <label>Key</label>
-                    <input id='addkeyinput' class="w3-input w3-border" type="text" placeholder="Key" value=""/>
+                    <input id='addkeyinput' class="w3-input w3-border" type="text" placeholder="Key" value="<%= Array.isArray(obj) ? obj.length.toString() : Object.keys(obj).length.toString() %>"
+                    <% if(Array.isArray(obj)){ %>
+                        disabled
+                    <% } %>
+                    />
                 </div>
                 <div class="w3-quarter">
                     <label>Type</label>
@@ -118,8 +123,15 @@
                     fetch("/post", {
                         method:"POST",
                         body: formData
-                    }).then( (response)=>response.text().then( (txt)=>{
-                            console.log(txt);
+                    }).then( (response)=>response.json().then( (json)=>{
+                            if(json.error){
+                                alert("error updating object: "+json.error);
+                                updatebtn.disabled=false;
+                                return;
+                            }
+                            let freememdisplay = document.getElementById('freememorydisplay');
+                            freememdisplay.innerHTML = 'Free Memory: '+json.freeMem+' bytes';
+                            console.log(JSON.stringify(json));
                             updatebtn.disabled=false;
                         })
                     );
@@ -130,7 +142,7 @@
                 let adderror = document.getElementById('additemerror'); adderror.classList.add("w3-hide");
                 let key = document.getElementById('addkeyinput').value;
                 let type = document.getElementById('addtypeinput').value;
-                if(!key||key.length==0||key.indexOf(' ')>=0){ 
+                if(!key||key.length==0||key.indexOf('/')>=0||key.indexOf('\\')>=0||key.indexOf('.')>=0||key.indexOf(',')>=0){ 
                     adderror.classList.remove("w3-hide");
                     adderror.children[0].innerHTML = 'invalid key'
                     return;
@@ -180,13 +192,21 @@
                 // let keydiv = document.createElement('div'); keydiv.setAttribute('class', 'w3-quarter');
                 // let keylabel = document.createElement('label'); keylabel.innerText = "Key";
                 // let keyinput = document.createElement('input'); keyinput.setAttribute('class','w3-input w3-border')
-                let hidden_objecttype_ele = document.getElementById("hidden_objecttype");
-                hidden_objecttype_ele.insertAdjacentHTML('afterend', objhtml);
+                let updateform_ele = document.getElementById("updateform");
+                updateform_ele.insertAdjacentHTML('beforeend', objhtml);
+                <% if(Array.isArray(obj)) { %>
+                    document.getElementById('addkeyinput').value = (parseInt(key)+1).toString();
+                <% } %>
             }
             function onnavigatetoparent(e){
                 e.preventDefault();
                 let pathname = window.location.pathname;
                 let search = window.location.search;
+                if(pathname=="/get/"||pathname=="/get") return; // already at root
+                // remove trailing '/' if any
+                if(pathname.length>0 && pathname[pathname.length-1]=='/'){
+                    pathname = pathname.slice(0,pathname.length-1);
+                }
                 let idx = pathname.lastIndexOf("/");
                 let path = pathname.slice(0,idx+1/*keep '/' */);
                 window.location.assign(path+search);

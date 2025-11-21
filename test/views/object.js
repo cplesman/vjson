@@ -33,7 +33,7 @@ module.exports = async function(req,res,next){
         //     html += '<tr><td>' + keys[i] + '</td><td>' + type + '</td></tr>';
         // }
         // html += '</table>';
-        res.status(200).send(ejstemplate({obj,keyname:objpath}));
+        res.status(200).send(ejstemplate({obj,keyname:objpath,freeMem:db.CalculateFree()}));
         //res.render('object',{keys:Object.keys(obj),obj:JSON.stringify(obj)});
     }
     catch(e){
