@@ -6,16 +6,33 @@
   "gypfile": true,
   "scripts": {
     "start": "node index.js",
-    "build:dev": "node-gyp -j 16 build --debug",
-    "build": "node-gyp -j 16 build",
-    "rebuild:dev": "node-gyp -j 16 rebuild --debug",
-    "rebuild": "node-gyp -j 16 rebuild",
-    "clean": "node-gyp clean"
+    "build:dev": "node-gyp build --debug",
+    "build": "node-gyp build",
+    "clean": "node-gyp clean",
+    "install": "node-gyp configure rebuild"
   },
   "dependencies": {
-    "bindings": "^1.5.0",
+    "bindings": "^1.5.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "devDependencies": {
     "ejs": "^3.1.10",
     "express": "^5.1.0",
     "multer": "^2.0.2"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cplesman/vjson.git"
+  },
+  "keywords": [
+    "database"
+  ],
+  "author": "Chris Plesman",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cplesman/vjson/issues"
+  },
+  "homepage": "https://github.com/cplesman/vjson#readme"
 }
