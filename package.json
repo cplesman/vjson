@@ -5,11 +5,10 @@
   "main": "src/vjson.js",
   "gypfile": true,
   "scripts": {
-    "start": "node index.js",
     "build:dev": "node-gyp build --debug",
     "build": "node-gyp build",
     "clean": "node-gyp clean",
-    "install": "node-gyp configure rebuild"
+    "install": "node-gyp configure build"
   },
   "dependencies": {
     "bindings": "^1.5.0"
