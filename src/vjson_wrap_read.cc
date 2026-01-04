@@ -65,10 +65,10 @@ napi_value read_obj(napi_env env, i64 objLoc, long depth=1){
 napi_value vjson_wrap::read_obj(napi_env env, napi_callback_info info){
     //params: vjsonMM, keypath of object
     napi_value js_obj;
-    napi_value argv[2];
+    napi_value argv[3];
     JsonMM *mem;
-    napi_valuetype expectedTypes[2] = { napi_object,napi_string };
-    napi_status err = helper_checkparams(env, info, 2, argv, expectedTypes);
+    napi_valuetype expectedTypes[3] = { napi_object,napi_string,napi_number };
+    napi_status err = helper_checkparams(env, info, 3, argv, expectedTypes);
     if (err != napi_ok) {
         napi_get_null(env, &js_obj);
         return js_obj;
@@ -81,12 +81,18 @@ napi_value vjson_wrap::read_obj(napi_env env, napi_callback_info info){
         napi_throw_error(env, "-3", "invalid object path");
         napi_get_null(env, &js_obj); return js_obj;
     }
+    int64_t depth;
+    CHECK(napi_get_value_int64(env, argv[2], (int64_t*)&depth)==napi_ok);
+    if(depth<1||depth>0x7FFFFFFF){
+        napi_throw_error(env, "-5", "invalid depth");
+        napi_get_null(env, &js_obj); return js_obj;
+    }
     i64 objLoc = GetObjectFromKeyPath(mem, objPath,objPathSize);
     if(objLoc<0){
         napi_throw_error(env, "-4", "object not found");
         napi_get_null(env, &js_obj); return js_obj;
     }
 
-    js_obj = ::read_obj(env, objLoc);
+    js_obj = ::read_obj(env, objLoc,(long)depth);
     return js_obj; //send object read
 }

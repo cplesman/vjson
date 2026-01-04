@@ -320,22 +320,22 @@ napi_value vjson_wrap::update_obj(napi_env env, napi_callback_info info){
         oldObjLoc = ((jsonobj*)parentObjPtr)->Find(key);
     }
 
-    if(oldObjLoc !=0){
-        _jsonobj* oldObjPtr = (_jsonobj*)mem->Lock(oldObjLoc);
-        unsigned long oldObjType = oldObjPtr->m_ftable;
-        mem->Unlock(oldObjLoc);
-        if(oldObjType == newObjType && (oldObjType==JSON_OBJ || oldObjType==JSON_ARRAY)){
-            //dont replace complex objects
-            _jsonobj* objPtr = (_jsonobj*)mem->Lock(newObjLoc);
-            long t = objPtr->m_ftable;
-            mem->Unlock(newObjLoc);
-            jsonobj_ftables[t]->Delete(newObjLoc);
-
-            mem->Unlock(parentObjLoc);
-            napi_get_boolean(env,true,&js_obj);
-            return js_obj;
-        }
-    }
+    // if(oldObjLoc !=0){
+    //     _jsonobj* oldObjPtr = (_jsonobj*)mem->Lock(oldObjLoc);
+    //     unsigned long oldObjType = oldObjPtr->m_ftable;
+    //     mem->Unlock(oldObjLoc);
+    //     if(oldObjType == newObjType && (oldObjType==JSON_OBJ || oldObjType==JSON_ARRAY)){
+    //         //dont replace complex objects
+    //         _jsonobj* objPtr = (_jsonobj*)mem->Lock(newObjLoc);
+    //         long t = objPtr->m_ftable;
+    //         mem->Unlock(newObjLoc);
+    //         jsonobj_ftables[t]->Delete(newObjLoc);
+    //         //object is same type so just return
+    //         mem->Unlock(parentObjLoc);
+    //         napi_get_boolean(env,true,&js_obj);
+    //         return js_obj;
+    //     }
+    // }
 
     if(type==JSON_ARRAY) {
         ((jsonarray*)parentObjPtr)->ReplaceIdx(index&0xffffffff,newObjLoc);
