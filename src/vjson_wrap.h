@@ -111,4 +111,5 @@ public:
     static napi_value delete_obj(napi_env env, napi_callback_info info);
     static napi_value update_obj(napi_env env, napi_callback_info info);
     static napi_value read_obj(napi_env env, napi_callback_info info);
+    static napi_value find_obj(napi_env env, napi_callback_info info);
 };

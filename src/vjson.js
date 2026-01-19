@@ -20,7 +20,7 @@ class vjson {
     Read(obj_path, depth=0x7FFFFFFF){ //default depth is max int
         return addon.read(this.db, obj_path, depth);
     }
-    Update(obj_path, obj_id, obj){
+    Update(obj_path, obj_id/*key of object to update*/, obj){
         return addon.update(this.db, obj_path, obj_id, obj);
     }
 
