@@ -48,6 +48,12 @@ public:
 	long Send(stream *buf, int pretty=0);
 };
 
+class _keypair{
+	public:
+	i64 key;
+	i64 val;
+};
+
 class jsonkeypair {
 public:
 	i64 key; //char *
@@ -221,6 +227,9 @@ public:
 	i64 Find(const char *key);
 	long Delete(const char *key);
 	long Replace(const char *key, i64 p_newval);
+
+	i64 Query(const char *query, i64 p_startItr/*for paging*/, _keypair *p_retPairs, unsigned long *p_numPairs);
+
 	// unsigned long NumKeys(i64 p_firstChild) {
 	// 	unsigned count = 0;
 	// 	i64 next = p_firstChild;
@@ -322,6 +331,8 @@ public:
 
 	void DeleteIdx(unsigned long index);
 	void ReplaceIdx(unsigned long index, i64 p_newval);
+
+	i64 Query(const char *query, i64 p_startItr/*for paging*/, _keypair *p_retPairs, unsigned long *p_numPairs);
 
 	i64 AppendText(const char *val);
 	i64 AppendText(i64 txtLoc);

@@ -117,22 +117,32 @@ public:
 
 char jsontext[] =
 "{\r\n"
-"  'name': 'Test Object',\r\n"
-"  'value': 123.456,\r\n"
-"  'active': true,\r\n"
-"  'active2': false,\r\n"
-"  'active4': true,\r\n"
-"  'active3': true,\r\n"
-"  'anullvalue':null,\r\n"
-"  'anundefinedvalue':undefined,\r\n"
-"  'items': [\r\n"
-"    'Item 0',{\r\n"
-"       'name': 'Sub Object', 'value': 789, \r\n"
-"       'name2': 'Sub Object2', 'value2': 789, \r\n"
-"     },\r\n"
-"    'Item 2',\r\n"
-"    'Item 3',\r\n"
-"    'Item 4'\r\n"
+"  \"object1\": {\r\n"
+"    \"name\": \"Test Object\",\r\n"
+"    \"value\": 12345,\r\n"
+"    \"country\": \"USA\"\r\n"
+"  },\r\n"
+"  \"object2\": {\r\n"
+"    \"name\": \"Another Object\",\r\n"
+"    \"value\": 67890,\r\n"
+"    \"country\": \"Canada\"\r\n"
+"  },\r\n"
+"  \"object3\": {\r\n"
+"    \"name\": \"Third Object\",\r\n"
+"    \"value\": 13579,\r\n"
+"    \"country\": \"UK\"\r\n"
+"  },\r\n"
+"  \"object4\": {\r\n"
+"    \"name\": \"Fourth Object\",\r\n"
+"    \"value\": 24680,\r\n"
+"    \"country\": \"Australia\"\r\n"
+"  },\r\n"
+"  \"items\": [\r\n"
+"    { \"id\": 1, \"description\": \"Item One\" },\r\n"
+"    { \"id\": 2, \"description\": \"Item Two\" },\r\n"
+"    { \"id\": 3, \"description\": \"Item Three\" },\r\n"
+"    { \"id\": 4, \"description\": \"Item Four\" },\r\n"
+"    { \"id\": 5, \"description\": \"Item Five\" }\r\n"
 "  ]\r\n"
 "}";
 
@@ -169,6 +179,22 @@ int main(){
 
     // jsonobj_Delete(jsonobj_root);
 	// ((JsonMM*)g_jsonMem)->m_globalObjLoc = 0;
+
+	rootPtr = (_jsonobj*)g_jsonMem->Lock(jsonobj_root);
+	_keypair retPairs[2048];
+	unsigned long numPairs = 2048;
+	printf("\r\n\r\nFinding items with 'value' > 14000:\n");
+	i64 itr = ((jsonobj*)rootPtr)->Query("value > 14000", 0, retPairs, &numPairs);
+	if (itr < 0) {
+		printf("Error in query evaluation\n");
+	}
+	else{
+		printf("Found %lu matching items:\n", numPairs);
+		for(int i=0;i<numPairs;i++){
+			printf("Key: %s\n", (char*)g_jsonMem->Lock(retPairs[i].key,true));
+		}
+	}
+	g_jsonMem->Unlock(jsonobj_root);
 
 #ifdef _WIN32
     _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG);
