@@ -214,6 +214,7 @@ NAPI_MODULE_INIT(/*env, exports*/) {
     {"read", NULL, vjson_wrap::read_obj, NULL, NULL, NULL, napi_enumerable, nullptr},
     {"append", NULL, vjson_wrap::append_obj, NULL, NULL, NULL, napi_enumerable, nullptr},
     {"update", NULL, vjson_wrap::update_obj, NULL, NULL, NULL, napi_enumerable, nullptr},
+    {"find", NULL, vjson_wrap::find_obj, NULL, NULL, NULL, napi_enumerable, nullptr},
     {"delete", NULL, vjson_wrap::delete_obj, NULL, NULL, NULL, napi_enumerable, nullptr}
   };
 

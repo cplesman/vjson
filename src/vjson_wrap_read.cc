@@ -124,7 +124,7 @@ napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen,
                     return js_obj;
                 }
                 for(i=0;i<numPairs;i++){
-                    sprintf(childKey, "%lu", retPairs[i].key);
+                    sprintf(childKey, "%lu", (unsigned long)retPairs[i].key);
                     napi_set_named_property(env, js_obj, childKey, read_obj(env,retPairs[i].val,depth-1));
                 }
             }

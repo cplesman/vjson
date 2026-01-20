@@ -17,6 +17,10 @@ class vjson {
         addon.flush(this.db);
     }
 
+    Find(collection_path, query_text, depth=0x7FFFFFFF){ //default depth is max int
+        return addon.find(this.db, collection_path, query_text, depth);
+    }
+
     Read(obj_path, depth=0x7FFFFFFF){ //default depth is max int
         return addon.read(this.db, obj_path, depth);
     }
