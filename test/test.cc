@@ -137,6 +137,21 @@ char jsontext[] =
 "    \"value\": 24680,\r\n"
 "    \"country\": \"Australia\"\r\n"
 "  },\r\n"
+"  \"object5\": {\r\n"
+"    \"name\": \"5th Object\",\r\n"
+"    \"value\": 7890,\r\n"
+"    \"country\": \"Canada\"\r\n"
+"  },\r\n"
+"  \"object6\": {\r\n"
+"    \"name\": \"Sixth Object\",\r\n"
+"    \"value\": 3579,\r\n"
+"    \"country\": \"UK\"\r\n"
+"  },\r\n"
+"  \"object7\": {\r\n"
+"    \"name\": \"Seventh Object\",\r\n"
+"    \"value\": 84680,\r\n"
+"    \"country\": \"Australia\"\r\n"
+"  },\r\n"
 "  \"items\": [\r\n"
 "    { \"id\": 1, \"description\": \"Item One\" },\r\n"
 "    { \"id\": 2, \"description\": \"Item Two\" },\r\n"
@@ -183,8 +198,8 @@ int main(){
 	rootPtr = (_jsonobj*)g_jsonMem->Lock(jsonobj_root);
 	_keypair retPairs[2048];
 	unsigned long numPairs = 2048;
-	printf("\r\n\r\nFinding items with 'value' > 14000:\n");
-	i64 itr = ((jsonobj*)rootPtr)->Query("value > 14000", 0, retPairs, &numPairs);
+	printf("\r\n\r\nFinding items with 'value' > 14000 and country == \"Australia\":\n");
+	i64 itr = ((jsonobj*)rootPtr)->Query("value > 14000 && country == \"Australia\"", 0, retPairs, &numPairs);
 	if (itr < 0) {
 		printf("Error in query evaluation\n");
 	}
