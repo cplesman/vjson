@@ -10,6 +10,7 @@
 
         "src/vjson/json_append.cc",
         "src/vjson/json_load.cc",
+        "src/vjson/json_find.cc",
         "src/vjson/json_send.cc",
         "src/vjson/json.cc",
 
