@@ -142,12 +142,27 @@ napi_value vjson_wrap::append_obj(napi_env env, napi_callback_info info){
     bool argerr=false;
     if(numArgs>2) { //appendToArray(vjsonMM,keypath of parent, object to append)
         napi_valuetype argType; 
-        napi_typeof(env, argv[0], &argType); if(argType!=napi_object) {argerr=true;}
-        napi_typeof(env, argv[1], &argType); if(argType!=napi_string) {argerr=true;}
-        if(numArgs==4) {napi_typeof(env, argv[2], &argType); if(argType!=napi_string) {argerr=true;}}
-        else if(numArgs!=3) {argerr=true;}
+        napi_typeof(env, argv[0], &argType); if(argType!=napi_object) {
+            napi_throw_error(env, "-2", "invalid argument expected vjsonMM object");
+            napi_get_null(env, &js_obj); return js_obj;
+        }
+        napi_typeof(env, argv[1], &argType); if(argType!=napi_string) {
+            napi_throw_error(env, "-2", "invalid argument expected string for object path");
+            napi_get_null(env, &js_obj); return js_obj;
+        }
+        if(numArgs==4) {napi_typeof(env, argv[2], &argType); if(argType!=napi_string) {
+            napi_throw_error(env, "-2", "invalid argument expected string for key");
+            napi_get_null(env, &js_obj); return js_obj;
+        }}
+        else if(numArgs!=3) {
+            napi_throw_error(env, "-2", "invalid argument count");
+            napi_get_null(env, &js_obj); return js_obj;
+        }
     }
-    else argerr=true;
+    else {
+        napi_throw_error(env, "-2", "invalid argument count");
+        napi_get_null(env, &js_obj); return js_obj;
+    }
     if (argerr) {
         napi_throw_error(env, "-2", "invalid arguments");
         napi_get_null(env, &js_obj); return js_obj;
@@ -188,7 +203,7 @@ napi_value vjson_wrap::append_obj(napi_env env, napi_callback_info info){
     }
 
     parentObjPtr = (_jsonobj*)mem->Lock(parentObjLoc);
-    long err;
+    long err=0;
     if(type==JSON_ARRAY) {
         err =((jsonarray*)parentObjPtr)->AppendObj(newObjLoc);
     }

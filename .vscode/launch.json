@@ -16,7 +16,9 @@
             //"program": "/home/cplesman/.nvm/versions/node/v24.11.0/bin/node",
             "program": "/home/cplesman/.nvm/versions/node/v22.21.0/bin/node",
             "args": [
-                "/mnt/d/programming/vjson/test/test.js"
+                "/mnt/d/programming/vjson/test/test.js",
+                "cplesman@gridtowing.ca",
+                "blahblah"
             ],
             "cwd":"${workspaceFolder}/test"
         },
@@ -33,9 +35,16 @@
         {
             "type":"node",
             "request":"launch",
-            "name":"debug node test",
+            "name":"debug node test2",
             "cwd":"${workspaceFolder}/test",
-            "args": ["test.js"]
+            "args": ["test2.js"]
+        },
+        {
+            "type":"node",
+            "request":"launch",
+            "name":"debug test with args",
+            "cwd":"${workspaceFolder}/test",
+            "args": ["test.js","cplesman@gridtowing.ca","blahblah"]
         }
 
     ]

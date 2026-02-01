@@ -1,61 +1,61 @@
-let MemManager = require("./db.js");
-let multer = require('multer');
-let upload = multer();
+const db = require('./db');
+const bcrypt = require('bcryptjs');
 
-const MAXUPDATEARRAYINCREMENTSIZE = 10000;
+async function main() {
+  const arg1 = process.argv[2];
+  const arg2 = process.argv[3];
 
-console.log("free bytes",MemManager.CalculateFree());
+  if (!arg1) {
+    console.error('Usage: node init_admin.js <password> OR node init_admin.js <email> <password> [name]');
+    process.exit(1);
+  }
 
-let root = MemManager.Read( "/");
-console.log(root);
+  // If two args provided: treat as <email> <password>
+  // If only one arg: treat as <password> and use default email
+  const email = arg2 ? arg1 : (process.env.ADMIN_EMAIL || 'admin@gridtowing.ca');
+  const password = arg2 ? arg2 : arg1;
+  const name = process.argv[4] || email.split('@')[0];
 
-if(root.testObj==null){
-    root.testObj = {
-        "text":"test text",
-        "numkey":1234567
+  // Check if user already exists
+    try{
+        const existing = db.Find('/users', `"email" == "${email}"`);
+        if (existing && Object.keys(existing).length > 0) {
+            console.error(`User already exists for email: ${email}`);
+            process.exit(1);
+        }
+    }catch(err){
+        db.Append('/', "users", {}); //create empty users db
+        console.log(err.message);
+        console.log("Created users database.");
+        //no users db yet
     }
-    let key = MemManager.Append("/", "testObj", root.testObj);
-    console.log("added",key);
-}
-if(root.testObj2==null){
-    root.testObj2 = {
-        "text":"test text 2",
-        "numkey":1234.567
-    }
-    let key = MemManager.Append("/", "testObj2", root.testObj2);
-    console.log("added",key);
-}
-if(root.testObj3==null){
-    root.testObj3 = {
-        "text":"test text 5",
-        "numkey":8765.42123
-    }
-    let key = MemManager.Append("/", "testObj3", root.testObj3);
-    console.log("added",key);
-}
-if(root.testCollection==null){
-    root.testCollection = [
-        {
-            "text":"collection item 1",
-            "value":111
-        },
-        {
-            "text":"collection item 2",
-            "value":222
-        },
-        {
-            "text":"collection item 3",
-            "value":333
-        }   
-    ];
-    let key = MemManager.Append("/", "testCollection", root.testCollection);
-    console.log("added",key);
+
+  const hashedPassword = await bcrypt.hash(password, 8);
+
+  const user = {
+    displayName: name,
+    email,
+    password: hashedPassword,
+    isAdmin: true,
+    emailVerified: true,
+    tokens: [],
+    createdAt: new Date().toISOString(),
+    lastLogin: null
+  };
+
+  try{
+    let id = db.Append('/users', user);
+    console.log(`Admin user created: ${email} (${id})`);
+  }catch(err){
+    console.error("Error creating user:", err);
+  }
+
+  db.Close(); //flush and close database
 }
 
-console.log("free bytes",MemManager.CalculateFree());
+main().catch((err) => {
+  console.error('Failed to create admin user:', err);
+  db.Close();
+  process.exit(1);
+});
 
-let results = MemManager.Find("/testCollection", "value == 222" , 3);
-console.log("find results:",results);
-
-MemManager.Close();
-console.log("closed db");
