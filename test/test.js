@@ -16,11 +16,29 @@ async function main() {
   const password = arg2 ? arg2 : arg1;
   const name = process.argv[4] || email.split('@')[0];
 
+  const hashedPassword = await bcrypt.hash(password, 8);
+
   // Check if user already exists
     try{
         const existing = db.Find('/users', `"email" == "${email}"`);
         if (existing && Object.keys(existing).length > 0) {
-            console.error(`User already exists for email: ${email}`);
+            console.log(`User already exists for email: ${email} id=${Object.keys(existing)[0]}`);
+            if(!existing[Object.keys(existing)[0]].isAdmin){
+                console.log("However, the existing user is not an admin. Updating to have admin privileges.");
+                if(!db.Update('/users/' + Object.keys(existing)[0], 'isAdmin', true)){
+                    console.error("Failed to update user to admin.");
+                }
+            }
+            console.log("Updating password");
+            if(!db.Update('/users/' + Object.keys(existing)[0], 'password', hashedPassword)){
+                console.error("Failed to update user password.");
+            }
+            // existing[Object.keys(existing)[0]].password = hashedPassword;
+            // existing[Object.keys(existing)[0]].isAdmin = true;
+            // db.Update('/users', Object.keys(existing)[0], existing[Object.keys(existing)[0]]);
+            console.log(JSON.stringify(db.Read('/users/' + Object.keys(existing)[0]), null, 2));
+            //db.Flush();
+            db.Close();
             process.exit(1);
         }
     }catch(err){
@@ -30,16 +48,13 @@ async function main() {
         //no users db yet
     }
 
-  const hashedPassword = await bcrypt.hash(password, 8);
-
   const user = {
     displayName: name,
     email,
-    password: hashedPassword,
+    //password: hashedPassword, //for testing purposes run this js file again to add password
     isAdmin: true,
     emailVerified: true,
     tokens: [],
-    createdAt: new Date().toISOString(),
     lastLogin: null
   };
 
