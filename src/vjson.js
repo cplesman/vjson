@@ -9,6 +9,7 @@ class vjson {
         return (this.db = addon.init(db_path));
     }
     Close(){
+        addon.close(this.db);
         delete this.db;
         this.db = null;
     }

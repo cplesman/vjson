@@ -184,6 +184,19 @@ napi_value vjson_wrap::flush(napi_env env, napi_callback_info info){
     napi_get_boolean(env,true,&js_obj);
     return js_obj;
 }
+napi_value vjson_wrap::close(napi_env env, napi_callback_info info){
+    napi_value js_obj;
+    napi_value argv[1];
+    JsonMM *mem;
+    napi_valuetype expectedTypes[1] = { napi_object };
+    helper_checkparams(env,info,1,argv,expectedTypes);
+
+    CHECK(napi_unwrap(env, argv[0], (void**)&mem)==napi_ok)
+    mem->Close();
+
+    napi_get_boolean(env,true,&js_obj);
+    return js_obj;
+}
 
 napi_value vjson_wrap::calculateFree(napi_env env, napi_callback_info info){ 
     size_t argc = 1; napi_value argv[1]; JsonMM *mem; napi_value js_obj;
@@ -208,6 +221,7 @@ NAPI_MODULE_INIT(/*env, exports*/) {
   napi_property_descriptor bindings[] = {
     {"init", NULL, vjson_wrap::init, NULL, NULL, NULL, napi_enumerable, nullptr/*can put global data here*/},
     {"flush", NULL, vjson_wrap::flush, NULL, NULL, NULL, napi_enumerable, nullptr},
+    {"close", NULL, vjson_wrap::close, NULL, NULL, NULL, napi_enumerable, nullptr},
  
     {"calculateFree", NULL, vjson_wrap::calculateFree, NULL, NULL, NULL, napi_enumerable, nullptr},
 	

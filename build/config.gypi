@@ -500,7 +500,7 @@
     "standalone_static_library": 1,
     "user_agent": "npm/10.9.4 node/v22.21.0 linux x64 workspaces/false",
     "userconfig": "/home/cplesman/.npmrc",
-    "local_prefix": "/mnt/d/programming/vjson",
+    "local_prefix": "/mnt/d/programming/grid-server-2.0",
     "prefix": "/home/cplesman/.nvm/versions/node/v22.21.0",
     "npm_version": "10.9.4",
     "cache": "/home/cplesman/.npm",

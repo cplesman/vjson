@@ -106,6 +106,7 @@ public:
     static napi_value calculateFree(napi_env env, napi_callback_info info);
 
     static napi_value flush(napi_env env, napi_callback_info info);
+    static napi_value close(napi_env env, napi_callback_info info);
 
     static napi_value append_obj(napi_env env, napi_callback_info info);
     static napi_value delete_obj(napi_env env, napi_callback_info info);
