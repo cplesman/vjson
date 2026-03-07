@@ -7,7 +7,7 @@ using namespace std;
 
 char g_read_obj_emptyString[] = "";
 
-napi_value read_obj(napi_env env, i64 objLoc, long depth=1){
+napi_value read_obj(napi_env env, i64 objLoc, long depth=1, long page=1, long pageSize=0xffffff){
     napi_value js_obj;
     _jsonobj* objPtr = (_jsonobj*)g_jsonMem->Lock(objLoc,true);
     long type = jsonobj_ftables[objPtr->m_ftable]->Type();
@@ -16,8 +16,11 @@ napi_value read_obj(napi_env env, i64 objLoc, long depth=1){
             napi_create_array(env, &js_obj); //assume no errors
             if(((jsonarray*)objPtr)->m_dataLoc && depth>0){
                 i64*data = (i64*)g_jsonMem->Lock(((jsonarray*)objPtr)->m_dataLoc,true);
-                for(unsigned i=0;i<((jsonarray*)objPtr)->m_size;i++){
-                    napi_set_element(env, js_obj,i,read_obj(env,data[i],depth-1));
+                unsigned long start = (page-1) * pageSize;
+                unsigned long end = start + pageSize;
+                if(end > ((jsonarray*)objPtr)->m_size) end = ((jsonarray*)objPtr)->m_size;
+                for(unsigned long i=start;i<end;i++){
+                    napi_set_element(env, js_obj,i-start,read_obj(env,data[i],depth-1)); //children are 1 level less deep, and no paging for children
                 }
                 g_jsonMem->Unlock(((jsonarray*)objPtr)->m_dataLoc);
             }
@@ -27,16 +30,21 @@ napi_value read_obj(napi_env env, i64 objLoc, long depth=1){
             if(((jsonobj*)objPtr)->m_tableLoc && depth>0){
                 i64 *table = (i64*)g_jsonMem->Lock(((jsonobj*)objPtr)->m_tableLoc,true);
                 unsigned long i;
+                unsigned long count = 0;
+                unsigned long start = (page-1) * pageSize; unsigned long end = start + pageSize;
                 for (i = 0; i < ((jsonobj*)objPtr)->m_tablesize; i++) {
                     i64 itr = table[i];
                     while (itr) {
                         jsonkeypair* itrPtr = (jsonkeypair*)g_jsonMem->Lock(itr,true);
                         i64 next = itrPtr->next;
                         char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key,true);
-                        napi_set_named_property(env,js_obj, keyPtr, read_obj(env,itrPtr->val,depth-1));                        
+                        if(count>=start && count<end){
+                            napi_set_named_property(env,js_obj, keyPtr, read_obj(env,itrPtr->val,depth-1));                        
+                        }
                         g_jsonMem->Unlock(itrPtr->key);
                         g_jsonMem->Unlock(itr);
                         itr = next;
+                        count++;
                     }
                 }
                 g_jsonMem->Unlock(((jsonobj*)objPtr)->m_tableLoc);
@@ -70,10 +78,10 @@ napi_value read_obj(napi_env env, i64 objLoc, long depth=1){
 napi_value vjson_wrap::read_obj(napi_env env, napi_callback_info info){
     //params: vjsonMM, keypath of object
     napi_value js_obj;
-    napi_value argv[3];
+    napi_value argv[5];
     JsonMM *mem;
-    napi_valuetype expectedTypes[3] = { napi_object,napi_string,napi_number };
-    napi_status err = helper_checkparams(env, info, 3, argv, expectedTypes);
+    napi_valuetype expectedTypes[5] = { napi_object,napi_string,napi_number,napi_number,napi_number };
+    napi_status err = helper_checkparams(env, info, 5, argv, expectedTypes);
     if (err != napi_ok) {
         napi_get_null(env, &js_obj);
         return js_obj;
@@ -92,17 +100,24 @@ napi_value vjson_wrap::read_obj(napi_env env, napi_callback_info info){
         napi_throw_error(env, "-5", "invalid depth");
         napi_get_null(env, &js_obj); return js_obj;
     }
+    int64_t page, pageSize;
+    CHECK(napi_get_value_int64(env, argv[3], (int64_t*)&page)==napi_ok);
+    CHECK(napi_get_value_int64(env, argv[4], (int64_t*)&pageSize)==napi_ok);
+    if(page<1||pageSize<1||pageSize>0x7FFFFFFF||page>=0x7FFFFFFF){
+        napi_throw_error(env, "-14", "invalid page or page size");
+        napi_get_null(env, &js_obj); return js_obj;
+    }
     i64 objLoc = GetObjectFromKeyPath(mem, objPath,objPathSize);
     if(objLoc<0){
         napi_throw_error(env, "-4", "object not found");
         napi_get_null(env, &js_obj); return js_obj;
     }
 
-    js_obj = ::read_obj(env, objLoc,(long)depth);
+    js_obj = ::read_obj(env, objLoc,(long)depth,(long)page,(long)pageSize);
     return js_obj; //send object read
 }
 
-napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen, long depth=1){
+napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen, long depth=1, long page=1, long pageSize=0xffffff){
     unsigned long i;
     napi_value js_obj;
     _jsonobj* objPtr = (_jsonobj*)g_jsonMem->Lock(collectionLoc,true);
@@ -111,10 +126,11 @@ napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen,
     unsigned long numPairs = 2048;
     char childKey[64];
     i64 itr = 0;
+    unsigned long count = 0, start = ((page-1) * pageSize), end = start + pageSize;
     switch(type){
         case JSON_ARRAY:
             napi_create_object(env,&js_obj); //use object to store matched items with index as key
-            while(numPairs==2048){
+            while(numPairs==2048 && count<end){
                 itr = ((jsonarray*)objPtr)->Query(query,itr,retPairs,&numPairs/*=2048*/);
                 if(itr<0){
                     //error in query evaluation
@@ -124,14 +140,17 @@ napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen,
                     return js_obj;
                 }
                 for(i=0;i<numPairs;i++){
-                    sprintf(childKey, "%lu", (unsigned long)retPairs[i].key);
-                    napi_set_named_property(env, js_obj, childKey, read_obj(env,retPairs[i].val,depth-1));
+                    if(count>=start && count<end){
+                        sprintf(childKey, "%lu", (unsigned long)retPairs[i].key);
+                        napi_set_named_property(env, js_obj, childKey, read_obj(env,retPairs[i].val,depth-1));
+                    }
+                    count++;
                 }
             }
             break;
         case JSON_OBJ:
             napi_create_object(env,&js_obj);
-            while(numPairs==2048){
+            while(numPairs==2048 && count<end){
                 itr = ((jsonobj*)objPtr)->Query(query,itr,retPairs,&numPairs/*=2048*/);
                 if(itr<0){
                     //error in query evaluation
@@ -142,7 +161,10 @@ napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen,
                 }
                 for(i=0;i<numPairs;i++){
                     char *keyPtr = (char*)g_jsonMem->Lock(retPairs[i].key,true);
-                    napi_set_named_property(env, js_obj, keyPtr, read_obj(env,retPairs[i].val,depth-1));
+                    if(count>=start && count<end){
+                        napi_set_named_property(env, js_obj, keyPtr, read_obj(env,retPairs[i].val,depth-1));
+                    }
+                    count++;
                     g_jsonMem->Unlock(retPairs[i].key);
                 }
             }
@@ -157,12 +179,12 @@ napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen,
     return js_obj;
 }
 napi_value vjson_wrap::find_obj(napi_env env, napi_callback_info info){
-    //params: vjsonMM, keypath of collection, query string, depth (children levels to read)
+    //params: vjsonMM, keypath of collection, query string, depth (children levels to read), page, pageSize
     napi_value js_obj;
-    napi_value argv[4];
+    napi_value argv[6];
     JsonMM *mem;
-    napi_valuetype expectedTypes[4] = { napi_object,napi_string,napi_string,napi_number };
-    napi_status err = helper_checkparams(env, info, 4, argv, expectedTypes);
+    napi_valuetype expectedTypes[6] = { napi_object,napi_string,napi_string,napi_number,napi_number,napi_number };
+    napi_status err = helper_checkparams(env, info, 6, argv, expectedTypes);
     if (err != napi_ok) {
         napi_get_null(env, &js_obj);
         return js_obj;
@@ -193,6 +215,13 @@ napi_value vjson_wrap::find_obj(napi_env env, napi_callback_info info){
         napi_get_null(env, &js_obj); return js_obj;
     }
 
-    js_obj = ::find_obj(env, objLoc,query, querySize,(long)depth);
+    int64_t page, pageSize;
+    CHECK(napi_get_value_int64(env, argv[4], (int64_t*)&page)==napi_ok);
+    CHECK(napi_get_value_int64(env, argv[5], (int64_t*)&pageSize)==napi_ok);
+    if(page<1||pageSize<1||pageSize>0x7FFFFFFF||page>=0x7FFFFFFF){
+        napi_throw_error(env, "-14", "invalid page or page size");
+        napi_get_null(env, &js_obj); return js_obj;
+    }
+    js_obj = ::find_obj(env, objLoc,query, querySize,(long)depth,(long)page,(long)pageSize);
     return js_obj; //send object read
 }

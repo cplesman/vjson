@@ -18,12 +18,12 @@ class vjson {
         addon.flush(this.db);
     }
 
-    Find(collection_path, query_text, depth=0x7FFFFFFF){ //default depth is max int
-        return addon.find(this.db, collection_path, query_text, depth);
+    Find(collection_path, query_text, depth=0x7FFFFFFF,page=1,pageSize=0x7FFFFFFF){ //default depth is max int
+        return addon.find(this.db, collection_path, query_text, depth, page, pageSize);
     }
 
-    Read(obj_path, depth=0x7FFFFFFF){ //default depth is max int
-        return addon.read(this.db, obj_path, depth);
+    Read(obj_path, depth=0x7FFFFFFF,page=1,pageSize=0x7FFFFFFF){ //default depth is max int
+        return addon.read(this.db, obj_path, depth, page, pageSize);
     }
     Update(obj_path, obj_id/*key of object to update*/, obj){
         return addon.update(this.db, obj_path, obj_id, obj);
