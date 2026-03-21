@@ -326,8 +326,11 @@ long find_obj_evaluateQuery(const char *parent_key, _jsonobj* parent, long start
 }
 
 i64 jsonobj::Query(const char *query, i64 p_startItr, _keypair *p_retPairs, unsigned long *p_numPairs){
-    if(!m_tableLoc || !p_numPairs || *p_numPairs==0){
+    if(!p_numPairs || *p_numPairs==0){
         return -1; //invalid parameters
+    }
+    if(!m_tableLoc){
+        return 0; //empty object
     }
     unsigned long maxPairs = *p_numPairs;
     *p_numPairs = 0;
@@ -376,8 +379,11 @@ i64 jsonobj::Query(const char *query, i64 p_startItr, _keypair *p_retPairs, unsi
     return itrCount; //success return number of items iterated
 }
 i64 jsonarray::Query(const char *query, i64 p_startItr, _keypair *p_retPairs, unsigned long *p_numPairs){
-    if(!m_dataLoc || !p_numPairs || *p_numPairs==0){
+    if(!p_numPairs || *p_numPairs==0){
         return -1; //invalid parameters
+    }
+    if(!m_dataLoc){
+        return 0; //empty array
     }
     unsigned long maxPairs = *p_numPairs;
     *p_numPairs = 0;
