@@ -132,6 +132,10 @@ napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen,
             napi_create_object(env,&js_obj); //use object to store matched items with index as key
             while(numPairs==2048 && count<end){
                 itr = ((jsonarray*)objPtr)->Query(query,itr,retPairs,&numPairs/*=2048*/);
+                if(itr==0){
+                    //no more matches
+                    break;
+                }
                 if(itr<0){
                     //error in query evaluation
                     napi_throw_error(env, "-6", "error in query evaluation");
@@ -152,6 +156,10 @@ napi_value find_obj(napi_env env, i64 collectionLoc, char *query, long queryLen,
             napi_create_object(env,&js_obj);
             while(numPairs==2048 && count<end){
                 itr = ((jsonobj*)objPtr)->Query(query,itr,retPairs,&numPairs/*=2048*/);
+                if(itr==0){
+                    //no more matches
+                    break;
+                }
                 if(itr<0){
                     //error in query evaluation
                     napi_throw_error(env, "-6", "error in query evaluation");
