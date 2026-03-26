@@ -270,8 +270,8 @@ long jsonobj::Delete(const char *p_key) {
 		char *keyPtr = (char*)g_jsonMem->Lock(itrPtr->key,true);
 		if (!strcmp(p_key, keyPtr)) {
 			g_jsonMem->Unlock(itrPtr->key); //done with key
-			itrPtr->Free(); 
 			i64 next = itrPtr->next; 
+			itrPtr->Free(); 
 			g_jsonMem->Unlock(itr);
 			if(!prev) {m_table = (i64*)g_jsonMem->Lock(m_tableLoc); m_table[k]=next; g_jsonMem->Unlock(m_tableLoc);}
 			else{ itrPtr = (jsonkeypair*)g_jsonMem->Lock(prev); itrPtr->next = next; g_jsonMem->Unlock(prev); } //de link itr from chain
