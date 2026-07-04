@@ -158,7 +158,16 @@ char jsontext[] =
 "    { \"id\": 3, \"description\": \"Item Three\" },\r\n"
 "    { \"id\": 4, \"description\": \"Item Four\" },\r\n"
 "    { \"id\": 5, \"description\": \"Item Five\" }\r\n"
-"  ]\r\n"
+"  ],\r\n"
+"  \"exampleCollection\": {\r\n"
+"    \"12\": { \"data\": \"Example Data 1\" },\r\n"
+"    \"11\": { \"data\": \"Example Data 1\" },\r\n"
+"    \"22\": { \"data\": \"Example Data 2\" },\r\n"
+"    \"33\": { \"data\": \"Example Data 3\" },\r\n"
+"    \"44\": { \"data\": \"Example Data 3\" },\r\n"
+"    \"55\": { \"data\": \"Example Data 3\" },\r\n"
+"    \"66\": { \"data\": \"Example Data 3\" }\r\n"
+"  }\r\n"
 "}";
 
 int main(){
@@ -172,8 +181,9 @@ int main(){
 	printf("free %lld bytes\n", g_jsonMem->CalculateFree());
 
     i64 jsonobj_root = ((JsonMM*)g_jsonMem)->m_globalObjLoc;
+	int err;
 	if( jsonobj_root==0){
-		int err = jsonobj::Create(&jsonobj_root);
+		err = jsonobj::Create(&jsonobj_root);
 		if(err<0){
 			printf("Failed to create json object\n");
 			return -1;
@@ -198,16 +208,21 @@ int main(){
 	rootPtr = (_jsonobj*)g_jsonMem->Lock(jsonobj_root);
 	_keypair retPairs[2048];
 	unsigned long numPairs = 2048;
-	printf("\r\n\r\nFinding items with 'value' > 14000 and country == \"Australia\":\n");
-	i64 itr = ((jsonobj*)rootPtr)->Query("value > 14000 && country == \"Australia\"", 0, retPairs, &numPairs);
-	if (itr < 0) {
-		printf("Error in query evaluation\n");
-	}
-	else{
-		printf("Found %lu matching items:\n", numPairs);
-		for(int i=0;i<numPairs;i++){
-			printf("Key: %s\n", (char*)g_jsonMem->Lock(retPairs[i].key,true));
+	printf("\r\n\r\nFinding items with 'id' >= 17 and id <= 55:\n");
+	i64 collection = ((jsonobj*)rootPtr)->Find("exampleCollection");
+	if(collection>0){
+		_jsonobj* collectionPtr = (_jsonobj*)g_jsonMem->Lock(collection);
+		i64 itr = ((jsonobj*)collectionPtr)->Query("__id >= 17 && __id <= 55", 0, retPairs, &numPairs);
+		if (itr < 0) {
+			printf("Error in query evaluation\n");
 		}
+		else{
+			printf("Found %lu matching items:\n", numPairs);
+			for(int i=0;i<numPairs;i++){
+				printf("Key: %s\n", (char*)g_jsonMem->Lock(retPairs[i].key,true));
+			}
+		}
+		g_jsonMem->Unlock(collection);
 	}
 	g_jsonMem->Unlock(jsonobj_root);
 
