@@ -5,6 +5,7 @@
   "main": "src/vjson.js",
   "gypfile": true,
   "scripts": {
+    "start": "node server/server.js",
     "build:dev": "node-gyp build --debug",
     "build": "node-gyp build",
     "clean": "node-gyp clean",
