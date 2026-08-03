@@ -5,8 +5,15 @@ const db = require('./server_db');
 const app = express();
 const PORT = 3100;
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '100mb', strict: false }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.use((err, req, res, next) => {
+    if (err && err.type === 'entity.parse.failed') {
+        return res.status(400).json({ ok: false, error: 'Invalid JSON request body' });
+    }
+    return next(err);
+});
 
 function initDatabase() {
     let root;
@@ -38,7 +45,6 @@ function initDatabase() {
         db.Append('/', 'logs', []);
     }
 
-    db.Flush();
 }
 
 function getValue(body) {
@@ -47,6 +53,14 @@ function getValue(body) {
         return body.value;
     }
     return body.obj;
+}
+
+function requireObjectBody(req) {
+    const body = req.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        throw new Error('Request body must be a JSON object');
+    }
+    return body;
 }
 
 function toOptionalInt(value) {
@@ -122,11 +136,59 @@ app.get('/api/find', (req, res) => {
     }
 });
 
+app.post('/api/flush', (req, res) => {
+    try {
+        db.Flush();
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(400).json({ ok: false, error: err.message });
+    }
+});
+
+app.post('/api/batch', (req, res) => {
+    try {
+        const body = requireObjectBody(req);
+        const batch = body.batch;
+        if (!Array.isArray(batch)) {
+            return res.status(400).json({ ok: false, error: 'Missing required field: batch (array)' });
+        }
+        // Process the batch
+        const results = [];
+        for (const op of batch) {
+            try {
+                const { operation, path, key, obj } = op;
+                const value = getValue(op);
+                let result;
+                switch (operation) {
+                    case 'append':
+                        result = typeof key === 'string' && key.length > 0 ? db.Append(path, key, value) : db.Append(path, value);
+                        break;
+                    case 'update':
+                        result = db.Update(path, key, value);
+                        break;
+                    case 'delete':
+                        result = db.Delete(path, key);
+                        break;
+                    default:
+                        throw new Error(`Unsupported operation type: ${operation}`);
+                }
+                results.push({ ok: true, result });
+            } catch (err) {
+                results.push({ ok: false, error: err.message });
+            }
+        }
+        return res.json({ ok: true, results });
+    } catch (err) {
+        return res.status(400).json({ ok: false, error: err.message });
+    }
+});
+
 app.post('/api/append', (req, res) => {
     try {
-        const objectPath = req.body.path;
-        const key = req.body.key;
-        const value = getValue(req.body);
+        const body = requireObjectBody(req);
+        const objectPath = body.path;
+        const key = body.key;
+        const value = getValue(body);
 
         if (!objectPath) {
             return res.status(400).json({ ok: false, error: 'Missing required field: path' });
@@ -139,7 +201,6 @@ app.post('/api/append', (req, res) => {
             id = db.Append(objectPath, value);
         }
 
-        db.Flush();
         return res.json({ ok: true, id });
     } catch (err) {
         return res.status(400).json({ ok: false, error: err.message });
@@ -148,16 +209,22 @@ app.post('/api/append', (req, res) => {
 
 app.put('/api/update', (req, res) => {
     try {
-        const objectPath = req.body.path;
-        const key = req.body.key;
-        const value = getValue(req.body);
+        const body = requireObjectBody(req);
+        let objectPath = body.path;
+        let key = body.key;
+        const value = getValue(body);
+
+        if(key===undefined || key===null){
+            let split = splitParentAndKey(objectPath);
+            objectPath = split.parentPath;
+            key = split.key;
+        }
 
         if (!objectPath || key == null) {
             return res.status(400).json({ ok: false, error: 'Missing required fields: path and key' });
         }
 
         const updated = db.Update(objectPath, key, value);
-        db.Flush();
 
         return res.json({ ok: true, updated });
     } catch (err) {
@@ -167,8 +234,9 @@ app.put('/api/update', (req, res) => {
 
 app.put('/api/replace', (req, res) => {
     try {
-        const objectPath = req.body.path;
-        const value = getValue(req.body);
+        const body = requireObjectBody(req);
+        const objectPath = body.path;
+        const value = getValue(body);
 
         if (!objectPath) {
             return res.status(400).json({ ok: false, error: 'Missing required field: path' });
@@ -176,7 +244,6 @@ app.put('/api/replace', (req, res) => {
 
         const { parentPath, key } = splitParentAndKey(objectPath);
         const updated = db.Update(parentPath, key, value);
-        db.Flush();
         return res.json({ ok: true, updated });
     } catch (err) {
         return res.status(400).json({ ok: false, error: err.message });
@@ -185,15 +252,15 @@ app.put('/api/replace', (req, res) => {
 
 app.delete('/api/delete', (req, res) => {
     try {
-        const objectPath = req.body.path;
-        const key = req.body.key;
+        const body = requireObjectBody(req);
+        const objectPath = body.path;
+        const key = body.key;
 
         if (!objectPath || key == null) {
             return res.status(400).json({ ok: false, error: 'Missing required fields: path and key' });
         }
 
         const deleted = db.Delete(objectPath, key);
-        db.Flush();
 
         return res.json({ ok: true, deleted });
     } catch (err) {

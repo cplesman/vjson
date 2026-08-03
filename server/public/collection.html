@@ -45,8 +45,14 @@
           <h2 class="h6 mb-2">Create Object</h2>
           <div class="row g-2">
             <div class="col-12 col-md-4">
-              <label class="form-label">Key (optional)</label>
-              <input id="createKey" class="form-control" placeholder="object key or blank" />
+              <div class="d-flex align-items-center justify-content-between">
+                <label class="form-label mb-0" for="createKey">Key (optional)</label>
+                <div class="form-check m-0">
+                  <input class="form-check-input" type="checkbox" id="createKeyTimestamp" />
+                  <label class="form-check-label small" for="createKeyTimestamp">timestamp</label>
+                </div>
+              </div>
+              <input id="createKey" class="form-control mt-2" placeholder="object key or blank" />
             </div>
             <div class="col-12 col-md-8">
               <label class="form-label">JSON Value</label>

@@ -45,6 +45,13 @@
             "name":"debug test with args",
             "cwd":"${workspaceFolder}/test",
             "args": ["test.js","cplesman@gridtowing.ca","blahblah"]
+        },
+        {
+            "type":"node",
+            "request":"launch",
+            "name":"debug vjson server",
+            "cwd":"${workspaceFolder}/server",
+            "args": ["server.js"]
         }
 
     ]

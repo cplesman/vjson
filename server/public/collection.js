@@ -10,6 +10,7 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const refreshBtn = document.getElementById('refreshBtn');
 const createKeyInput = document.getElementById('createKey');
+const createKeyTimestampInput = document.getElementById('createKeyTimestamp');
 const createValueInput = document.getElementById('createValue');
 const createBtn = document.getElementById('createBtn');
 
@@ -119,7 +120,15 @@ async function onCreateObject() {
         const key = createKeyInput.value.trim();
         const payload = { path: collectionPath, value };
         if (!collectionIsArray && key.length > 0) {
-            payload.key = key;
+            if (createKeyTimestampInput.checked) {
+                const dateValue = new Date(key);
+                if (Number.isNaN(dateValue.getTime())) {
+                    throw new Error('Invalid local date/time value for timestamp key');
+                }
+                payload.key = String(dateValue.getTime());
+            } else {
+                payload.key = key;
+            }
         }
 
         const result = await apiCall('/api/append', {
@@ -134,6 +143,16 @@ async function onCreateObject() {
         await loadCollection();
     } catch (error) {
         setStatus(error.message, true);
+    }
+}
+
+function updateKeyInputMode() {
+    if (createKeyTimestampInput.checked) {
+        createKeyInput.type = 'datetime-local';
+        createKeyInput.placeholder = '';
+    } else {
+        createKeyInput.type = 'text';
+        createKeyInput.placeholder = 'object key or blank';
     }
 }
 
@@ -202,6 +221,7 @@ nextBtn.addEventListener('click', () => {
 
 refreshBtn.addEventListener('click', loadCollection);
 createBtn.addEventListener('click', onCreateObject);
+createKeyTimestampInput.addEventListener('change', updateKeyInputMode);
 body.addEventListener('click', (event) => {
     const button = event.target.closest('[data-delete-key]');
     if (!button) {
@@ -210,4 +230,5 @@ body.addEventListener('click', (event) => {
     const key = button.getAttribute('data-delete-key');
     onDeleteObject(key);
 });
+updateKeyInputMode();
 loadCollection();
