@@ -4,5 +4,6 @@ build/
 test/vmemtest/
 dbdata/
 .vscode/browse.vc.db
+.vscode/browse.vc.db.lock
 .vscode/browse.vc.db-shm
 .vscode/browse.vc.db-wal
