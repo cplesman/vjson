@@ -160,6 +160,9 @@ app.post('/api/batch', (req, res) => {
                 const value = getValue(op);
                 let result;
                 switch (operation) {
+                    case 'read':
+                        result = db.Read(path);
+                        break;
                     case 'append':
                         result = typeof key === 'string' && key.length > 0 ? db.Append(path, key, value) : db.Append(path, value);
                         break;
