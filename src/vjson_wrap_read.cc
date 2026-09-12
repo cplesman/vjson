@@ -233,3 +233,54 @@ napi_value vjson_wrap::find_obj(napi_env env, napi_callback_info info){
     js_obj = ::find_obj(env, objLoc,query, querySize,(long)depth,(long)page,(long)pageSize);
     return js_obj; //send object read
 }
+
+napi_value vjson_wrap::info_obj(napi_env env, napi_callback_info info){
+    //params: vjsonMM, keypath of object
+    napi_value js_obj;
+    napi_value argv[5];
+    JsonMM *mem;
+    napi_valuetype expectedTypes[2] = { napi_object,napi_string };
+    napi_status err = helper_checkparams(env, info, 2, argv, expectedTypes);
+    if (err != napi_ok) {
+        napi_get_null(env, &js_obj);
+        return js_obj;
+    }
+    CHECK(napi_unwrap(env, argv[0], (void**)&mem)==napi_ok)
+    g_jsonMem = mem; //set global memory manager for jsonobj_Create
+    char objPath[2048]; size_t objPathSize;
+    CHECK(napi_get_value_string_utf8(env, argv[1], objPath, 2048 - 1, &objPathSize) == napi_ok);
+    if(!objPathSize || objPathSize==2048-1/*maxed out*/){
+        napi_throw_error(env, "-3", "invalid object path");
+        napi_get_null(env, &js_obj); return js_obj;
+    }
+    i64 objLoc = GetObjectFromKeyPath(mem, objPath,objPathSize);
+    if(objLoc<0){
+        napi_throw_error(env, "-4", "object not found");
+        napi_get_null(env, &js_obj); return js_obj;
+    }
+
+    _jsonobj* objPtr = (_jsonobj*)g_jsonMem->Lock(objLoc,true);
+    long type = jsonobj_ftables[objPtr->m_ftable]->Type();
+
+    if(type==JSON_OBJ){
+        napi_create_object(env,&js_obj);
+        unsigned long count = ((jsonobj*)objPtr)->NumKeys();
+        napi_value js_count;
+        napi_create_uint32(env, count, &js_count);
+        napi_set_named_property(env, js_obj, "count", js_count);
+    }
+    else if(type==JSON_ARRAY){
+        napi_create_object(env,&js_obj);
+        unsigned long count = ((jsonarray*)objPtr)->m_size;
+        napi_value js_count;
+        napi_create_uint32(env, count, &js_count);
+        napi_set_named_property(env, js_obj, "count", js_count);
+    }
+    else{
+        //create error
+        napi_throw_error(env, "-5", "unsupported object type");
+        napi_get_null(env, &js_obj);
+    }
+
+    return js_obj; //send object info
+}

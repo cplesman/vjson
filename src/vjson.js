@@ -28,6 +28,9 @@ class vjson {
     Update(obj_path, obj_id/*key of object to update*/, obj){
         return addon.update(this.db, obj_path, obj_id, obj);
     }
+    Info(obj_path){
+        return addon.info(this.db, obj_path);
+    }
 
     Append(obj_path, obj_id/*new unique id*/, obj){ //append to obj
         if(obj==undefined){

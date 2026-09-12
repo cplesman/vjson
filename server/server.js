@@ -271,6 +271,19 @@ app.delete('/api/delete', (req, res) => {
     }
 });
 
+app.get('/api/info', (req, res) => {
+    try {
+        const objectPath = req.query.path || '/';
+
+        let result;
+        result = db.Info(objectPath);
+
+        res.json({ ok: true, data: result });
+    } catch (err) {
+        res.status(400).json({ ok: false, error: err.message });
+    }
+});
+
 app.get('/api/health', (req, res) => {
     res.json({ ok: true, freeBytes: db.CalculateFree() });
 });
