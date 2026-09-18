@@ -27,11 +27,11 @@ function initDatabase() {
         root = {};
     }
 
-    if (root.users == null) {
+    if (root.users == undefined) {
         db.Append('/', 'users', {});
     }
 
-    if (root.products == null) {
+    if (root.products == undefined) {
         db.Append('/', 'products', {
             demo: {
                 name: 'Sample Product',
@@ -41,7 +41,7 @@ function initDatabase() {
         });
     }
 
-    if (root.logs == null) {
+    if (root.logs == undefined) {
         db.Append('/', 'logs', []);
     }
 
@@ -64,7 +64,7 @@ function requireObjectBody(req) {
 }
 
 function toOptionalInt(value) {
-    if (value == null || value === '') {
+    if (value == undefined || value === '') {
         return undefined;
     }
     const n = Number(value);
@@ -102,14 +102,14 @@ app.get('/api/read', (req, res) => {
         const pageSize = toOptionalInt(req.query.pageSize);
 
         let result;
-        if (depth == null && page == null && pageSize == null) {
+        if (depth == undefined && page == undefined && pageSize == undefined) {
             result = db.Read(objectPath);
         } else {
             result = db.Read(
                 objectPath,
-                depth == null ? 0x7FFFFFFF : depth,
-                page == null ? 1 : page,
-                pageSize == null ? 0x7FFFFFFF : pageSize
+                depth == undefined ? 0x7FFFFFFF : depth,
+                page == undefined ? 1 : page,
+                pageSize == undefined ? 0x7FFFFFFF : pageSize
             );
         }
 
@@ -128,8 +128,8 @@ app.get('/api/find', (req, res) => {
             return res.status(400).json({ ok: false, error: 'Missing required query parameter: query' });
         }
 
-        const depth = req.query.depth ? Number(req.query.depth) : undefined;
-        const result = depth == null ? db.Find(collectionPath, query) : db.Find(collectionPath, query, depth);
+        const depth = toOptionalInt(req.query.depth);
+        const result = depth == undefined ? db.Find(collectionPath, query) : db.Find(collectionPath, query, depth);
         res.json({ ok: true, data: result });
     } catch (err) {
         res.status(400).json({ ok: false, error: err.message });
@@ -223,7 +223,7 @@ app.put('/api/update', (req, res) => {
             key = split.key;
         }
 
-        if (!objectPath || key == null) {
+        if (!objectPath || key == undefined) {
             return res.status(400).json({ ok: false, error: 'Missing required fields: path and key' });
         }
 
@@ -259,7 +259,7 @@ app.delete('/api/delete', (req, res) => {
         const objectPath = body.path;
         const key = body.key;
 
-        if (!objectPath || key == null) {
+        if (!objectPath || !key) {
             return res.status(400).json({ ok: false, error: 'Missing required fields: path and key' });
         }
 
